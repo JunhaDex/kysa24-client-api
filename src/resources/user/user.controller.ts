@@ -1,29 +1,50 @@
 import {
   Body,
   Controller,
-  ForbiddenException,
+  Delete,
   Get,
-  HttpStatus,
-  Post,
+  Param,
+  Patch,
+  Put,
+  Query,
   Res,
 } from '@nestjs/common';
-import { UserService } from './user.service';
-import { LoginInput } from '@/resources/user/user.type';
-import { formatResponse, validateObject } from '@/utils/index.util';
+import { UserService } from '@/resources/user/user.service';
 
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post('login')
-  async login(@Body() cred: LoginInput, @Res() res: any) {
-    if (validateObject(['id', 'pwd'], cred)) {
-      const token = await this.userService.login(cred);
-      return res.code(HttpStatus.OK).send(formatResponse(HttpStatus.OK, token));
-    }
-    throw new ForbiddenException();
+  @Get('secure-list')
+  async listUsers(@Query() query: any, @Res() res: any) {
+    return 'listUsers';
   }
 
-  @Get('my')
-  async getMyInfo() {}
+  @Patch('my/:id')
+  async updateMyInfo(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Res() res: any,
+  ) {
+    return 'updateMyInfo';
+  }
+
+  @Put('my/:id/pwd')
+  async updateMyPwd(
+    @Param('id') id: string,
+    @Body() body: any,
+    @Res() res: any,
+  ) {
+    return 'updateMyPwd';
+  }
+
+  @Get('my/noti')
+  async listMyNotifications(@Query() query: any, @Res() res: any) {
+    return 'listMyNotifications';
+  }
+
+  @Delete('my/noti/delete-batch')
+  async deleteMyNotificationBatch(@Body() body: any, @Res() res: any) {
+    return 'deleteMyNotificationBatch';
+  }
 }

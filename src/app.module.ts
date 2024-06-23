@@ -10,6 +10,8 @@ import { PostModule } from '@/resources/post/post.module';
 import { GroupModule } from '@/resources/group/group.module';
 import { REDIS_CONFIG } from '@/providers/redis.provider';
 import { MYSQL_CONFIG } from '@/providers/mysql.provider';
+import { ChatModule } from '@/resources/chat/chat.module';
+import { UploadModule } from '@/resources/upload/upload.module';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { MYSQL_CONFIG } from '@/providers/mysql.provider';
     UserModule,
     PostModule,
     GroupModule,
+    ChatModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],
