@@ -15,3 +15,19 @@ export interface Paginate<T> {
   meta: PageMeta;
   list: T[];
 }
+
+export interface PageQuery {
+  pageNo: number;
+  pageSize: number;
+}
+
+export interface DTOKeys {
+  [key: string]: {
+    type: string | Array<string>;
+    required: boolean;
+    length?: number;
+    limit?: number;
+    include?: string[];
+    exclude?: string[];
+  };
+}

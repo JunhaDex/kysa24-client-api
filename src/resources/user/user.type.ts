@@ -1,68 +1,61 @@
-import { Group } from '@/resources/group/group.type';
+import { DTOKeys } from '@/types/index.type';
 
-/**
- * type definition for user db model - when write
- */
+export const UserUpdateDTOKeys: DTOKeys = {
+  profileImg: {
+    type: 'string',
+    required: false,
+  },
+  coverImg: {
+    type: 'string',
+    required: false,
+  },
+  introduce: {
+    type: 'string',
+    required: false,
+  },
+} as const;
+
+export const UserPasswordDTOKeys: DTOKeys = {
+  oldPwd: {
+    type: 'string',
+    required: true,
+  },
+  newPwd: {
+    type: 'string',
+    required: true,
+  },
+};
+
 export interface UserDto {
   name: string;
   sex: 'm' | 'f';
-  age: number;
   nickname: string;
   id: string;
   pwd: string;
-  teamId: number;
-  profileImg: string;
-  coverImg: string;
-  introduce: string;
+  teamName: string;
+  profileImg?: string;
+  coverImg?: string;
+  introduce?: string;
   dob: Date;
   geo: string;
-  createdAt?: Date;
-  updatedAt?: Date;
 }
 
-export interface LoginInput {
+export const LoginDTOKeys: DTOKeys = {
+  userId: {
+    type: 'string',
+    required: true,
+  },
+  password: {
+    type: 'string',
+    required: true,
+  },
+} as const;
+
+export interface LoginDto {
   id: string;
   pwd: string;
-}
-
-/**
- * type definition for user db model - when read
- * id, pwd should be removed
- */
-export interface User {
-  name: string;
-  sex: 'm' | 'f';
-  age: number;
-  nickname: string;
-  team: Team;
-  profileImg: string;
-  coverImg: string;
-  introduce: string;
-  geo: string;
-  groups: Group[];
-  followers: number;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-/**
- * type definition for team db model
- */
-export interface Team {
-  teamName: string;
-  leader: User;
-  createdAt?: Date;
-  updatedAt?: Date;
-}
-
-/**
- * type definition for user_device db model
- */
-export interface UserDevice {
-  userId: number;
-  fcm: string;
-  device: string;
-  lastLogin: Date;
-  createdAt?: Date;
-  updatedAt?: Date;
+  fcm?: {
+    token: string;
+    device: string;
+  };
 }

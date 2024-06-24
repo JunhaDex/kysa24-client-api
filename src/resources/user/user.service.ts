@@ -1,25 +1,223 @@
 import * as bcrypt from 'bcrypt';
-import { ForbiddenException, Injectable } from '@nestjs/common';
-import { LoginInput } from '@/resources/user/user.type';
+import { Injectable } from '@nestjs/common';
+import { LoginDto, UserDto } from '@/resources/user/user.type';
 import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Like, Repository } from 'typeorm';
+import {
+  Notification,
+  Team,
+  User,
+  UserDevice,
+} from '@/resources/user/user.entity';
+import { flattenObject } from '@/utils/index.util';
+import { PageQuery, Paginate } from '@/types/index.type';
+import { DEFAULT_PAGE_SIZE, EMPTY_PAGE } from '@/constants/index.constant';
 
 @Injectable()
 export class UserService {
-  constructor(private jwtService: JwtService) {}
+  static USER_SERVICE_EXCEPTIONS = {
+    USER_NOT_FOUND: 'USER_NOT_FOUND',
+    PASSWORD_NOT_UPDATED: 'PASSWORD_NOT_UPDATED',
+  } as const;
 
-  async login(cred: LoginInput): Promise<{ accessToken: string }> {
-    const user: any = undefined; // find member here
-    const bPfx = `$2b$${process.env.BCRYPT_SALT_ROUND}$`;
-    if (user) {
-      if (await bcrypt.compare(cred.pwd, bPfx + user.pwd)) {
-        const payload = { userId: user.userId, sub: user.ref };
-        return { accessToken: await this.jwtService.signAsync(payload) };
-      }
-    }
-    throw new ForbiddenException();
+  private readonly Exceptions = UserService.USER_SERVICE_EXCEPTIONS;
+
+  constructor(
+    private jwtService: JwtService,
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Team) private readonly teamRepo: Repository<Team>,
+    @InjectRepository(UserDevice)
+    private readonly userDeviceRepo: Repository<UserDevice>,
+    @InjectRepository(Notification)
+    private readonly notificationRepo: Repository<Notification>,
+  ) {}
+
+  private safeUserInfo(user: User): User {
+    return flattenObject(user, {
+      exclude: [
+        'pwd',
+        'team.id',
+        'team.leader',
+        'team.createdAt',
+        'team.updatedAt',
+      ],
+      alias: {
+        'team.teamName': 'teamName',
+      },
+    }) as User;
   }
 
-  async getMyInfo() {
-    return 'getMyInfo';
+  async login(cred: LoginDto): Promise<{ accessToken: string }> {
+    const user: any = await this.userRepo.findOneBy({ authId: cred.id });
+    if (user) {
+      if (await bcrypt.compare(cred.pwd, user.pwd)) {
+        const payload = { userId: user.userId, name: user.name, sub: user.ref };
+        const accessToken = await this.jwtService.signAsync(payload, {
+          expiresIn: '3d',
+        });
+        if (cred.fcm) {
+          await this.pushUserDevice(user.userId, cred.fcm);
+        }
+        return { accessToken };
+      }
+    }
+    throw new Error(this.Exceptions.USER_NOT_FOUND);
+  }
+
+  async pushUserDevice(
+    userId: number,
+    data: { token: string; device: string },
+  ) {
+    const device = this.userDeviceRepo.create({
+      userId,
+      fcm: data.token,
+      device: data.device,
+      lastLogin: new Date(),
+    });
+    await this.userDeviceRepo.save(device);
+    // delete old device (save up to 3)
+    const devices = await this.userDeviceRepo.find({
+      where: { userId },
+      order: { lastLogin: 'ASC' },
+    });
+    if (devices.length > 3) {
+      await this.userDeviceRepo.delete(devices[0]);
+    }
+    return;
+  }
+
+  async getUserInfo(userRef: string) {
+    const user: any = await this.userRepo.findOneBy({ ref: userRef });
+    if (user) {
+      const my = this.safeUserInfo(user);
+      return { myInfo: my };
+    }
+    throw new Error(this.Exceptions.USER_NOT_FOUND);
+  }
+
+  async listUsers(options?: {
+    page: PageQuery;
+    filter: { name: string; teamName: string };
+  }): Promise<Paginate<User>> {
+    // setup page query
+    const size = options?.page ? options.page.pageSize : DEFAULT_PAGE_SIZE;
+    const skip = options?.page
+      ? (options.page.pageNo - 1) * options.page.pageSize
+      : 0;
+    const take = options?.page ? options.page.pageSize : size;
+    // setup filter query
+    let filter: any;
+    if (options?.filter) {
+      let teamId: number | undefined;
+      if (options.filter.teamName) {
+        const team = await this.teamRepo.findOneBy({
+          teamName: Like(`%${options.filter.teamName}%`),
+        });
+        if (team) {
+          teamId = team.id;
+        } else {
+          return EMPTY_PAGE as Paginate<User>;
+        }
+      }
+      filter = {
+        name: options.filter.name
+          ? Like(`%${options.filter.name}%`)
+          : undefined,
+        teamId,
+      };
+    }
+    // query user table
+    const [listRaw, count] = await this.userRepo.findAndCount({
+      where: filter,
+      relations: ['team'],
+      skip,
+      take,
+    });
+    const list = listRaw.map((user) => {
+      return this.safeUserInfo(user);
+    });
+    // return paginated result
+    return {
+      meta: {
+        pageNo: options?.page?.pageNo || 1,
+        pageSize: size,
+        totalPage: Math.ceil(count / size),
+        totalCount: count,
+      },
+      list,
+    };
+  }
+
+  async updateMyInfo(userRef: string, data: UserDto): Promise<void> {
+    const user: any = await this.userRepo.findOneBy({ ref: userRef });
+    if (user) {
+      user.profileImg = data.profileImg;
+      user.coverImg = data.coverImg;
+      user.introduce = data.introduce;
+      user.geo = data.geo;
+      await this.userRepo.save(user);
+      return;
+    }
+    throw new Error(this.Exceptions.USER_NOT_FOUND);
+  }
+
+  async updateMyPwd(
+    userRef: string,
+    data: { oldPwd: string; newPwd: string },
+  ): Promise<void> {
+    const user: any = await this.userRepo.findOneBy({ ref: userRef });
+    if (user) {
+      if (await bcrypt.compare(data.oldPwd, user.pwd)) {
+        user.pwd = await bcrypt.hash(data.newPwd, 10);
+        await this.userRepo.save(user);
+        return;
+      }
+      throw new Error(this.Exceptions.PASSWORD_NOT_UPDATED);
+    }
+    throw new Error(this.Exceptions.USER_NOT_FOUND);
+  }
+
+  async listMyNotifications(
+    userRef: string,
+    options?: { page: PageQuery },
+  ): Promise<Paginate<Notification>> {
+    const user = await this.userRepo.findOneBy({ ref: userRef });
+    if (user) {
+      // setup page query
+      const size = options?.page ? options.page.pageSize : DEFAULT_PAGE_SIZE;
+      const skip = options?.page
+        ? (options.page.pageNo - 1) * options.page.pageSize
+        : 0;
+      const take = options?.page ? options.page.pageSize : size;
+      // query notification table
+      const [list, count] = await this.notificationRepo.findAndCount({
+        where: { target: user.id },
+        skip,
+        take,
+      });
+      return {
+        meta: {
+          pageNo: options?.page?.pageNo || 1,
+          pageSize: size,
+          totalPage: Math.ceil(count / size),
+          totalCount: count,
+        },
+        list,
+      };
+    }
+    throw new Error(this.Exceptions.USER_NOT_FOUND);
+  }
+
+  async deleteMyNotificationBatch(
+    userRef: string,
+    data: number[],
+  ): Promise<void> {
+    const user = await this.userRepo.findOneBy({ ref: userRef });
+    if (user) {
+      await this.notificationRepo.delete(data);
+      return;
+    }
+    throw new Error(this.Exceptions.USER_NOT_FOUND);
   }
 }

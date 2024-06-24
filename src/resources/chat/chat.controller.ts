@@ -38,4 +38,9 @@ export class ChatController {
   async denyChat(@Param('uid') uid: string, @Res() res: any) {
     return 'denyChat';
   }
+
+  @Post('online')
+  async updateOnlineStatus(@Res() res: any) {
+    return 'updateOnlineStatus';
+  }
 }
