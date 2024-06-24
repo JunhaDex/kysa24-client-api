@@ -18,7 +18,7 @@ export interface Paginate<T> {
 
 export interface PageQuery {
   pageNo: number;
-  pageSize: number;
+  pageSize?: number;
 }
 
 export interface DTOKeys {

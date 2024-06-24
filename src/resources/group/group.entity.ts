@@ -2,10 +2,13 @@ import {
   Column,
   Entity,
   JoinColumn,
+  ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '@/resources/user/user.entity';
+import { Post } from '@/resources/post/post.entity';
 
 @Entity({ name: 'group' })
 export class Group {
@@ -32,6 +35,10 @@ export class Group {
   @OneToOne(() => User)
   @JoinColumn({ name: 'creator' })
   creatorUser: User;
+  @OneToMany(() => Post, (post) => post.group)
+  posts: Post[];
+  @OneToMany(() => GroupUserFollow, (follow) => follow.group)
+  followers: GroupUserFollow[];
 }
 
 @Entity({ name: 'group_user_follow' })
@@ -50,4 +57,7 @@ export class GroupUserFollow {
   createdAt: Date;
   @Column({ nullable: true })
   updatedAt: Date;
+  @ManyToOne(() => Group, (group) => group.followers)
+  @JoinColumn({ name: 'group_id' })
+  group: Group;
 }

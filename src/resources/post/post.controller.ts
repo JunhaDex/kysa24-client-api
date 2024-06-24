@@ -60,8 +60,25 @@ export class PostController {
   }
 
   @Get(':id')
-  async getPost(@Param('id') id: string, @Res() res: any) {
-
+  async getPostById(@Param('id') id: string, @Res() res: any) {
+    if (isNaN(Number(id))) {
+      return res
+        .status(HttpStatus.BAD_REQUEST)
+        .send(formatResponse(HttpStatus.BAD_REQUEST, 'invalid post id'));
+    }
+    try {
+      const post = await this.postService.getPostById(+id);
+      return res
+        .status(HttpStatus.OK)
+        .send(formatResponse(HttpStatus.OK, post));
+    } catch (e) {
+      if (e.message === PostService.POST_SERVICE_EXCEPTIONS.POST_NOT_FOUND) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .send(formatResponse(HttpStatus.NOT_FOUND, 'Post not found'));
+      }
+      return fallbackCatch(res, e);
+    }
   }
 
   @Get(':id/reply')

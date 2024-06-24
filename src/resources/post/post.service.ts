@@ -10,7 +10,6 @@ import {
   PostCreateDto,
   PostUpdateDto,
 } from '@/resources/post/post.type';
-import { flattenObject } from '@/utils/index.util';
 
 @Injectable()
 export class PostService {
@@ -42,12 +41,20 @@ export class PostService {
         : 0;
       const take = options?.page ? options.page.pageSize : size;
       // query post table
-      const [list, count] = await this.postRepo.findAndCount({
-        where: { groupId: group.id },
-        order: { createdAt: 'DESC' },
-        skip,
-        take,
-      });
+      const [list, count] = await this.postRepo
+        .createQueryBuilder('post')
+        .leftJoinAndSelect('post.comments', 'comment')
+        .leftJoinAndSelect('post.likes', 'like')
+        .leftJoinAndSelect('post.authorUser', 'authorUser')
+        .addSelect('count(distinct comment.id)', 'commentCount')
+        .addSelect('count(distinct like.id)', 'likeCount')
+        .addSelect('authorUser.ref', 'authorRef')
+        .addSelect('authorUser.name', 'authorName')
+        .addSelect('authorUser.profileImg', 'authorProfileImg')
+        .addSelect('authorUser.geo', 'authorGeo')
+        .skip(skip)
+        .take(take)
+        .getManyAndCount();
       return {
         meta: {
           pageNo: options?.page?.pageNo ?? 1,
@@ -61,36 +68,27 @@ export class PostService {
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
   }
 
-  async getPost(id: number): Promise<Post> {
-    const post = await this.postRepo.findOne({
-      where: { id },
-      relations: ['authorUser', 'group'],
-    });
+  async getPostById(
+    id: number,
+  ): Promise<{ post: Post; comments: Paginate<PostComment> }> {
+    const post = await this.postRepo
+      .createQueryBuilder('post')
+      .leftJoinAndSelect('post.authorUser', 'authorUser')
+      .leftJoinAndSelect('post.likes', 'like')
+      .leftJoinAndSelect('post.comments', 'comment')
+      .addSelect('count(distinct like.id)', 'likeCount')
+      .addSelect('count(distinct comment.id)', 'commentCount')
+      .addSelect('authorUser.ref', 'authorRef')
+      .addSelect('authorUser.name', 'authorName')
+      .addSelect('authorUser.profileImg', 'authorProfileImg')
+      .addSelect('authorUser.geo', 'authorGeo')
+      .where('post.id = :id', { id })
+      .getOne();
     if (post) {
-      const likes = await this.likeRepo.count({
-        where: { postId: id, deletedAt: null },
+      const comments = await this.listPostComments(id, {
+        page: { pageNo: 1 },
       });
-      const flat = flattenObject(post, {
-        include: [
-          'id',
-          'authorUser.ref',
-          'authorUser.name',
-          'authorUser.profileImg',
-          'authorUser.geo',
-          'image',
-          'message',
-          'group.ref',
-          'createdAt',
-          'updatedAt',
-        ],
-        alias: {
-          'authorUser.ref': 'authorRef',
-          'authorUser.name': 'authorName',
-          'authorUser.profileImg': 'authorProfileImg',
-          'authorUser.geo': 'authorGeo',
-          'group.ref': 'groupRef',
-        },
-      });
+      return { post, comments };
     }
     throw new Error(this.Exceptions.POST_NOT_FOUND);
   }
