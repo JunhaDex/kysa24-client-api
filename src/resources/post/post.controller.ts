@@ -11,6 +11,7 @@ import {
   Query,
   Req,
   Res,
+  UseGuards,
 } from '@nestjs/common';
 import { PostService } from './post.service';
 import { PageQuery } from '@/types/index.type';
@@ -26,6 +27,7 @@ import {
   PostCreateDTOKeys,
   PostUpdateDTOKeys,
 } from '@/resources/post/post.type';
+import { AuthGuard } from '@/guards/auth.guard';
 
 @Controller('post')
 export class PostController {
@@ -115,6 +117,7 @@ export class PostController {
   }
 
   @Post('new')
+  @UseGuards(AuthGuard)
   async createPost(
     @Body() body: PostCreateDto,
     @Req() req: any,
@@ -145,6 +148,7 @@ export class PostController {
   }
 
   @Patch(':id')
+  @UseGuards(AuthGuard)
   async updatePost(
     @Param('id') id: string,
     @Body() body: any,
@@ -181,6 +185,7 @@ export class PostController {
   }
 
   @Put('like/:id')
+  @UseGuards(AuthGuard)
   async likePost(@Param('id') id: string, @Req() req: any, @Res() res: any) {
     if (isNaN(Number(id))) {
       return res
@@ -203,6 +208,7 @@ export class PostController {
   }
 
   @Post(':id/reply/new')
+  @UseGuards(AuthGuard)
   async createReply(
     @Param('id') id: string,
     @Body() body: any,
@@ -239,6 +245,7 @@ export class PostController {
   }
 
   @Delete(':id/delete')
+  @UseGuards(AuthGuard)
   async deletePost(@Param('id') id: string, @Req() req: any, @Res() res: any) {
     if (isNaN(Number(id))) {
       return res
@@ -265,6 +272,7 @@ export class PostController {
   }
 
   @Delete(':id/reply/:rid/delete')
+  @UseGuards(AuthGuard)
   async deleteReply(
     @Param('id') id: string,
     @Param('rid') rid: string,

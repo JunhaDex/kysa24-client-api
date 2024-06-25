@@ -1,23 +1,49 @@
-import { User } from '@/resources/user/user.type';
+import { DTOKeys } from '@/types/index.type';
 
-/**
- * type definition for group db model
- */
-export interface GroupCore {
-  creator: User | number;
+export const GroupCreateDtoKeys: DTOKeys = {
+  groupName: {
+    type: 'string',
+    required: true,
+  },
+  introduce: {
+    type: 'string',
+    required: true,
+  },
+  profileImg: {
+    type: 'string',
+    required: false,
+  },
+  coverImg: {
+    type: 'string',
+    required: false,
+  },
+};
+
+export interface GroupCreateDto {
+  creator: number;
   groupName: string;
-  profileImg: string;
-  coverImg: string;
   introduce: string;
-  isShow: boolean;
-  createdAt: Date;
-  updatedAt: Date;
+  profileImg?: string;
+  coverImg?: string;
 }
 
-/**
- * type definition for group response
- */
-export interface Group extends GroupCore {
-  followers: number;
-  exposure: number;
+export const GroupUpdateDtoKeys: DTOKeys = {
+  introduce: {
+    type: 'string',
+    required: true,
+  },
+  profileImg: {
+    type: 'string',
+    required: false,
+  },
+  coverImg: {
+    type: 'string',
+    required: false,
+  },
+};
+
+export interface GroupUpdateDto {
+  introduce: string;
+  profileImg?: string;
+  coverImg?: string;
 }
