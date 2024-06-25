@@ -5,6 +5,7 @@ import {
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { Team } from '@/resources/user/team.entity';
 
 @Entity({ name: 'user' })
 export class User {
@@ -47,28 +48,11 @@ export class User {
   team: Team;
 }
 
-@Entity({ name: 'team' })
-export class Team {
-  @PrimaryGeneratedColumn()
-  id: number;
-  @Column()
-  teamName: string;
-  @Column({ nullable: true })
-  leader: number;
-  @Column({ nullable: true })
-  createdAt: Date;
-  @Column({ nullable: true })
-  updatedAt: Date;
-  @OneToOne(() => User)
-  @JoinColumn({ name: 'leader' })
-  leaderUser: User;
-}
-
 @Entity({ name: 'user_device' })
 export class UserDevice {
   @PrimaryGeneratedColumn()
   id: number;
-  @Column()
+  @Column({ name: 'user_id' })
   userId: number;
   @Column()
   fcm: string;

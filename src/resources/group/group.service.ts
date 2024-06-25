@@ -1,12 +1,14 @@
 import { v4 as uuidv4 } from 'uuid';
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Group, GroupUserFollow } from '@/resources/group/group.entity';
 import { PageQuery, Paginate } from '@/types/index.type';
 import { DEFAULT_PAGE_SIZE } from '@/constants/index.constant';
-import { Repository } from 'typeorm';
+import { DataSource, Like, Repository } from 'typeorm';
 import { Post } from '@/resources/post/post.entity';
 import { GroupCreateDto, GroupUpdateDto } from '@/resources/group/group.type';
+import { flattenObject } from '@/utils/index.util';
+import { PostService } from '@/resources/post/post.service';
 
 @Injectable()
 export class GroupService {
@@ -23,6 +25,8 @@ export class GroupService {
     @InjectRepository(Post) private readonly postRepo: Repository<Post>,
     @InjectRepository(GroupUserFollow)
     private readonly followRepo: Repository<GroupUserFollow>,
+    @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly postService: PostService,
   ) {}
 
   async listGroups(options?: {
@@ -36,40 +40,73 @@ export class GroupService {
       : 0;
     const take = options?.page ? options.page.pageSize : size;
     // setup filter queries
-    let filter = '';
+    let filter: any;
     if (options?.filter?.groupName) {
-      filter = `group.name LIKE :name', { name: %${options?.filter?.groupName}% }`;
+      filter = { groupName: Like(`%${options.filter.groupName}%`) };
     }
     // query group table
-    const [list, count] = await this.groupRepo
+    const [groups, count] = await this.groupRepo.findAndCount({
+      select: {
+        id: true,
+        ref: true,
+        creator: true,
+        groupName: true,
+        profileImg: true,
+        coverImg: true,
+        introduce: true,
+        isShow: true,
+        priority: true,
+        creatorUser: {
+          ref: true,
+          nickname: true,
+        },
+        posts: {
+          createdAt: true,
+        },
+        followers: {
+          id: true,
+        },
+      },
+      where: filter,
+      skip,
+      take,
+      order: {
+        priority: 'DESC',
+        posts: {
+          createdAt: 'DESC',
+        },
+      },
+      relations: ['creatorUser', 'posts', 'followers'],
+    });
+    const posts = await this.groupRepo
       .createQueryBuilder('group')
-      .leftJoinAndSelect('group.creator', 'creator')
-      .leftJoinAndSelect(
+      .select('group.id AS id')
+      .leftJoinAndMapMany(
+        'group.posts',
         (sq) => {
           return sq
-            .select('post.*')
-            .from('post', 'post')
-            .leftJoinAndSelect('post.author', 'author')
-            .addSelect('author.nickname', 'authorName')
-            .addSelect('author.profileImg', 'authorProfileImg')
-            .addSelect('author.geo', 'authorGeo')
-            .addSelect('author.teamId', 'authorTeam')
+            .select([
+              'post.id AS post_id',
+              'post.message AS post_message',
+              'post.created_at AS post_created_at',
+              'group_id',
+            ])
+            .from(Post, 'post')
+            .leftJoin('post.authorUser', 'authorUser')
+            .addSelect([
+              'authorUser.nickname AS author_nickname',
+              'authorUser.ref AS author_ref',
+              'authorUser.team_id AS author_team_id',
+              'authorUser.profile_img AS author_profile_img',
+            ])
             .orderBy('post.created_at', 'DESC')
             .limit(3);
         },
-        'recentPosts',
-        'recentPosts.groupId = group.id',
+        'posts',
+        'posts.group_id = group.id',
       )
-      .addSelect('creator.ref', 'creatorRef')
-      .addSelect('creator.nickname', 'creatorName')
-      .addSelect('creator.profileImg', 'creatorProfileImg')
-      .addSelect('creator.geo', 'creatorGeo')
-      .addSelect('creator.teamId', 'creatorTeam')
-      .where(filter)
-      .orderBy('recentPosts.created_at', 'DESC')
-      .skip(skip)
-      .take(take)
-      .getManyAndCount();
+      .where('group.id IN (:...ids)', { ids: groups.map((group) => group.id) })
+      .getRawMany();
     // return paginated result
     return {
       meta: {
@@ -78,8 +115,38 @@ export class GroupService {
         totalPage: Math.ceil(count / size),
         totalCount: count,
       },
-      list,
+      list: this.addGroupPosts(groups, posts),
     };
+  }
+
+  private addGroupPosts(groups: Group[], posts: any): Group[] {
+    const flattened = groups.map((group) => {
+      const flatten = flattenObject(group, {
+        exclude: ['creatorUser.ref', 'creatorUser.nickname'],
+      }) as any;
+      return {
+        ...flatten,
+        followers: group.followers.length,
+      };
+    });
+    return flattened.map((group) => {
+      group.posts = posts
+        .filter((post: any) => post.group_id === group.id)
+        .map((item: any) => {
+          return flattenObject(item, {
+            alias: {
+              post_id: 'id',
+              post_message: 'message',
+              post_created_at: 'createdAt',
+              author_nickname: 'authorNickname',
+              author_ref: 'authorRef',
+              author_team_id: 'authorTeamId',
+              author_profile_img: 'authorProfileImg',
+            },
+          }) as any;
+        });
+      return group;
+    });
   }
 
   async createGroup(group: GroupCreateDto): Promise<void> {
@@ -95,6 +162,7 @@ export class GroupService {
       newGroup.coverImg = group.coverImg;
       newGroup.creator = group.creator;
       await this.groupRepo.save(newGroup);
+      await this.followGroup(newGroup.ref, group.creator, { isMust: true });
       return;
     }
     throw new Error(this.Exceptions.GROUP_EXISTS);
@@ -119,17 +187,55 @@ export class GroupService {
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
   }
 
-  async followGroup(groupRef: string, follower: number): Promise<void> {
+  async followGroup(
+    groupRef: string,
+    follower: number,
+    options?: {
+      isMust?: boolean;
+      role?: 'reader' | 'writer';
+    },
+  ): Promise<void> {
     const group = await this.groupRepo.findOneBy({ ref: groupRef });
     if (group) {
       const follow = this.followRepo.create({
         groupId: group.id,
         follower,
-        isMust: false,
-        role: 'writer',
+        isMust: options?.isMust ?? false,
+        role: options?.role ?? 'reader',
       });
       await this.followRepo.save(follow);
       return;
+    }
+    throw new Error(this.Exceptions.GROUP_NOT_FOUND);
+  }
+
+  async deleteGroup(creator: number, groupRef: string): Promise<void> {
+    const group = await this.groupRepo.findOneBy({ ref: groupRef });
+    if (group) {
+      if (creator === group.creator) {
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+          const posts = await this.postRepo.findBy({ groupId: group.id });
+          await this.postService.deletePostWithInjection(
+            queryRunner,
+            posts.map((post) => post.id as number),
+          );
+          await queryRunner.manager.delete(GroupUserFollow, {
+            groupId: group.id,
+          });
+          await queryRunner.manager.delete(Group, { id: group.id });
+          await queryRunner.commitTransaction();
+        } catch (err) {
+          await queryRunner.rollbackTransaction();
+          throw err;
+        } finally {
+          await queryRunner.release();
+        }
+        return;
+      }
+      throw new Error(this.Exceptions.GROUP_UNAUTHORIZED);
     }
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
   }

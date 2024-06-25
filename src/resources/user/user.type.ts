@@ -26,6 +26,11 @@ export const UserPasswordDTOKeys: DTOKeys = {
   },
 };
 
+export interface UserPasswordDto {
+  oldPwd: string;
+  newPwd: string;
+}
+
 export interface UserDto {
   name: string;
   sex: 'm' | 'f';
@@ -41,11 +46,11 @@ export interface UserDto {
 }
 
 export const LoginDTOKeys: DTOKeys = {
-  userId: {
+  id: {
     type: 'string',
     required: true,
   },
-  password: {
+  pwd: {
     type: 'string',
     required: true,
   },

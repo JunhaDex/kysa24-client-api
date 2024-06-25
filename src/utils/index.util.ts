@@ -8,6 +8,7 @@ export function validateBody(keys: DTOKeys, obj: any): boolean {
         return false;
       }
     } else if (!keys[key].required && obj[key] !== undefined) {
+      console.log('here?');
       if (typeof keys[key].type === 'string') {
         if (keys[key].type === 'date') {
           if (isNaN(Date.parse(obj[key]))) {
@@ -131,6 +132,8 @@ export function formatResponse(code: number, result: any): ApiResponse {
     message = 'forbidden';
   } else if (code === 404) {
     message = 'not found';
+  } else if (code === 409) {
+    message = 'conflict';
   } else if (code === 500) {
     message = 'internal server error';
   }
@@ -144,7 +147,7 @@ export function formatResponse(code: number, result: any): ApiResponse {
 export function fallbackCatch(e: any, res: any) {
   Logger.error(e);
   return res
-    .code(HttpStatus.INTERNAL_SERVER_ERROR)
+    .status(HttpStatus.INTERNAL_SERVER_ERROR)
     .send(
       formatResponse(HttpStatus.INTERNAL_SERVER_ERROR, 'internal server error'),
     );

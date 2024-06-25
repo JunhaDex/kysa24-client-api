@@ -1,0 +1,88 @@
+### login
+POST {{host}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "id": "dex.kim",
+  "pwd": "000000",
+  "fcm": {
+    "token": "fSkGfr1yfrCQPIgqJgexCR:APA91bGzMfcN2vExbKlwEbTz0gEIqwa_8xAgZx0xp_fmvghxwkvvpTHxAlTxYeeJ3qSIeQALcwZpQqz92z5xTfzGTl86jvF1zJ4qyzebu5H1b28nTn859XwjovX9NEshY1WLWwlUBbE3",
+    "device": "chrome os mac"
+  }
+}
+
+### my info
+GET {{host}}/api/v1/auth/my
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+
+### get user list (secure-list)
+# GET {{host}}/api/v1/user/secure-list?name=김&team-name=1&page=2&size=10
+GET {{host}}/api/v1/user/secure-list
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+### update user (my) info
+PATCH {{host}}/api/v1/user/my/20309ab8-df91-48bc-9276-4841ac0ec4cb
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{
+  "profileImg": "https://cdn.kysa.page/cdn.png",
+  "coverImg": "https://cdn.kysa.page/cdn.png",
+  "introduce": "안녕하세요. 반갑습니다."
+}
+
+### update user password
+PUT {{host}}/api/v1/user/my/20309ab8-df91-48bc-9276-4841ac0ec4cb/pwd
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{
+  "oldPwd": "123456",
+  "newPwd": "000000"
+}
+
+### create group
+POST {{host}}/api/v1/group/new
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{
+  "groupName": "공지 그룹",
+  "introduce": "공지 그룹입니다."
+}
+
+### get group list
+#GET {{host}}/api/v1/group?name=테스트&page=1&size=10
+GET {{host}}/api/v1/group
+Content-Type: application/json
+
+### update group list
+PATCH {{host}}/api/v1/group/855f0097-911b-43b6-b5cb-75a38b69baf8
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{
+  "introduce": "공지 그룹입니다 수정되었습니다!"
+}
+
+### follow group
+PUT {{host}}/api/v1/group/follow/855f0097-911b-43b6-b5cb-75a38b69baf8
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{}
+### delete group
+DELETE {{host}}/api/v1/group/855f0097-911b-43b6-b5cb-75a38b69baf8
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{}
+
+### list group feed
+GET {{host}}/api/v1/post/feed/f852ad29-62d4-4724-bf6b-5fe94c788161
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+

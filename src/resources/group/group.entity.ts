@@ -28,6 +28,8 @@ export class Group {
   introduce: string;
   @Column({ type: 'tinyint', unsigned: true })
   isShow: boolean; // 0: hide, 1: show
+  @Column()
+  priority: number;
   @Column({ nullable: true })
   createdAt: Date;
   @Column({ nullable: true })

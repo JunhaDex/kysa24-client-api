@@ -5,7 +5,6 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Observable } from 'rxjs';
 import { UserService } from '@/resources/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 
@@ -21,11 +20,12 @@ export class AuthGuard implements CanActivate {
     const token = (req.headers['authorization']?.split(' ') ?? [])[1];
     try {
       const user = await this.jwtService.verifyAsync(token);
+      console.log('Guard!');
       if (user) {
         const ref = user.sub;
-        const current = this.userService.getUserInfo(ref);
+        const current = await this.userService.getUserInfo(ref);
         if (current) {
-          req['user'] = current;
+          req['user'] = current.myInfo;
           return true;
         }
       }

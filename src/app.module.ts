@@ -36,7 +36,7 @@ import { AuthMiddleware } from '@/middlewares/auth.middleware';
     }),
     JwtModule.register({
       global: true,
-      secret: process.env.JWT_HASH,
+      secret: process.env.JWT_SECRET_HASH,
       signOptions: { expiresIn: '2h' },
     }),
     UserModule,
@@ -54,6 +54,7 @@ export class AppModule implements NestModule {
       .apply(AuthMiddleware)
       .exclude(
         { path: 'auth/login', method: RequestMethod.POST },
+        { path: 'group', method: RequestMethod.GET },
         { path: 'healthz', method: RequestMethod.GET },
         { path: '*', method: RequestMethod.OPTIONS },
       )

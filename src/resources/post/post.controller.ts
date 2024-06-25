@@ -33,7 +33,7 @@ import { AuthGuard } from '@/guards/auth.guard';
 export class PostController {
   constructor(private readonly postService: PostService) {}
 
-  @Get(':gRef')
+  @Get('feed/:gRef')
   async listPost(
     @Param('gRef') groupRef: string,
     @Query() query: any,
@@ -57,11 +57,11 @@ export class PostController {
           .status(HttpStatus.NOT_FOUND)
           .send(formatResponse(HttpStatus.NOT_FOUND, 'Group not found'));
       }
-      return fallbackCatch(res, e);
+      return fallbackCatch(e, res);
     }
   }
 
-  @Get(':id')
+  @Get('detail/:id')
   async getPostById(@Param('id') id: string, @Res() res: any) {
     if (isNaN(Number(id))) {
       return res
@@ -79,7 +79,7 @@ export class PostController {
           .status(HttpStatus.NOT_FOUND)
           .send(formatResponse(HttpStatus.NOT_FOUND, 'Post not found'));
       }
-      return fallbackCatch(res, e);
+      return fallbackCatch(e, res);
     }
   }
 
@@ -112,7 +112,7 @@ export class PostController {
           .status(HttpStatus.NOT_FOUND)
           .send(formatResponse(HttpStatus.NOT_FOUND, 'Post not found'));
       }
-      return fallbackCatch(res, e);
+      return fallbackCatch(e, res);
     }
   }
 
@@ -138,7 +138,7 @@ export class PostController {
               .status(HttpStatus.FORBIDDEN)
               .send(formatResponse(HttpStatus.FORBIDDEN, 'group not found'));
           }
-          return fallbackCatch(res, e);
+          return fallbackCatch(e, res);
         }
       }
     }
@@ -179,7 +179,7 @@ export class PostController {
             .status(HttpStatus.FORBIDDEN)
             .send(formatResponse(HttpStatus.FORBIDDEN, 'not author'));
         }
-        return fallbackCatch(res, e);
+        return fallbackCatch(e, res);
       }
     }
   }
@@ -203,7 +203,7 @@ export class PostController {
           .status(HttpStatus.NOT_FOUND)
           .send(formatResponse(HttpStatus.NOT_FOUND, 'post not found'));
       }
-      return fallbackCatch(res, e);
+      return fallbackCatch(e, res);
     }
   }
 
@@ -235,7 +235,7 @@ export class PostController {
               .status(HttpStatus.NOT_FOUND)
               .send(formatResponse(HttpStatus.NOT_FOUND, 'post not found'));
           }
-          return fallbackCatch(res, e);
+          return fallbackCatch(e, res);
         }
       }
     }
@@ -267,7 +267,7 @@ export class PostController {
           .status(HttpStatus.FORBIDDEN)
           .send(formatResponse(HttpStatus.FORBIDDEN, 'not author'));
       }
-      return fallbackCatch(res, e);
+      return fallbackCatch(e, res);
     }
   }
 
@@ -299,7 +299,7 @@ export class PostController {
           .status(HttpStatus.FORBIDDEN)
           .send(formatResponse(HttpStatus.FORBIDDEN, 'not author'));
       }
-      return fallbackCatch(res, e);
+      return fallbackCatch(e, res);
     }
   }
 }

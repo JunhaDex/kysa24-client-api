@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, In, QueryRunner, Repository } from 'typeorm';
 import { Post, PostComment, PostLike } from '@/resources/post/post.entity';
 import { PageQuery, Paginate } from '@/types/index.type';
 import { Group } from '@/resources/group/group.entity';
@@ -10,6 +10,7 @@ import {
   PostCreateDto,
   PostUpdateDto,
 } from '@/resources/post/post.type';
+import { flattenObject } from '@/utils/index.util';
 
 @Injectable()
 export class PostService {
@@ -41,20 +42,34 @@ export class PostService {
         : 0;
       const take = options?.page ? options.page.pageSize : size;
       // query post table
-      const [list, count] = await this.postRepo
-        .createQueryBuilder('post')
-        .leftJoinAndSelect('post.comments', 'comment')
-        .leftJoinAndSelect('post.likes', 'like')
-        .leftJoinAndSelect('post.authorUser', 'authorUser')
-        .addSelect('count(distinct comment.id)', 'commentCount')
-        .addSelect('count(distinct like.id)', 'likeCount')
-        .addSelect('authorUser.ref', 'authorRef')
-        .addSelect('authorUser.name', 'authorName')
-        .addSelect('authorUser.profileImg', 'authorProfileImg')
-        .addSelect('authorUser.geo', 'authorGeo')
-        .skip(skip)
-        .take(take)
-        .getManyAndCount();
+      const [list, count] = await this.postRepo.findAndCount({
+        select: {
+          id: true,
+          author: true,
+          image: true,
+          message: true,
+          createdAt: true,
+          authorUser: {
+            ref: true,
+            nickname: true,
+            profileImg: true,
+            coverImg: true,
+            introduce: true,
+            teamId: true,
+          },
+          likes: {
+            id: true,
+          },
+          comments: {
+            id: true,
+          },
+        },
+        where: { groupId: group.id },
+        order: { createdAt: 'DESC' },
+        skip,
+        take,
+        relations: ['authorUser', 'likes', 'comments'],
+      });
       return {
         meta: {
           pageNo: options?.page?.pageNo ?? 1,
@@ -62,10 +77,30 @@ export class PostService {
           totalPage: Math.ceil(count / size),
           totalCount: count,
         },
-        list,
+        list: this.cleanupListItem(list),
       };
     }
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
+  }
+
+  private cleanupListItem(list: Post[]) {
+    return list.map((item) => {
+      const flatten = flattenObject(item, {
+        alias: {
+          'authorUser.ref': 'authorRef',
+          'authorUser.nickname': 'authorNickname',
+          'authorUser.profileImg': 'authorProfileImg',
+          'authorUser.coverImg': 'authorCoverImg',
+          'authorUser.introduce': 'authorIntroduce',
+          'authorUser.teamId': 'authorTeamId',
+        },
+      }) as any;
+      return {
+        ...flatten,
+        likes: item.likes.length,
+        comments: item.comments.length,
+      };
+    });
   }
 
   async getPostById(
@@ -195,17 +230,15 @@ export class PostService {
     throw new Error(this.Exceptions.POST_NOT_FOUND);
   }
 
-  async deletePost(userid: number, id: number): Promise<void> {
+  async deletePost(userId: number, id: number): Promise<void> {
     const post = await this.postRepo.findOneBy({ id });
     if (post) {
-      if (post.author === userid) {
+      if (post.author === userId) {
         const queryRunner = this.dataSource.createQueryRunner();
         await queryRunner.connect();
         await queryRunner.startTransaction();
         try {
-          await queryRunner.manager.delete(PostLike, { postId: id });
-          await queryRunner.manager.delete(PostComment, { postId: id });
-          await queryRunner.manager.delete(Post, id);
+          await this.deletePostWithInjection(queryRunner, [id]);
           await queryRunner.commitTransaction();
         } catch (err) {
           await queryRunner.rollbackTransaction();
@@ -218,6 +251,13 @@ export class PostService {
       throw new Error(this.Exceptions.NOT_AUTHOR);
     }
     throw new Error(this.Exceptions.POST_NOT_FOUND);
+  }
+
+  async deletePostWithInjection(qr: QueryRunner, ids: number[]) {
+    await qr.manager.delete(PostLike, { postId: In(ids) });
+    await qr.manager.delete(PostComment, { postId: In(ids) });
+    await qr.manager.delete(Post, { id: In(ids) });
+    return;
   }
 
   async deletePostComment(userid: number, id: number): Promise<void> {

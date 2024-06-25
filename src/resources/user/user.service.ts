@@ -1,15 +1,11 @@
 import * as bcrypt from 'bcrypt';
 import { Injectable } from '@nestjs/common';
-import { LoginDto, UserDto } from '@/resources/user/user.type';
+import { LoginDto, UserDto, UserPasswordDto } from '@/resources/user/user.type';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Like, Repository } from 'typeorm';
-import {
-  Notification,
-  Team,
-  User,
-  UserDevice,
-} from '@/resources/user/user.entity';
+import { Notification, User, UserDevice } from '@/resources/user/user.entity';
+import { Team } from '@/resources/user/team.entity';
 import { flattenObject } from '@/utils/index.util';
 import { PageQuery, Paginate } from '@/types/index.type';
 import { DEFAULT_PAGE_SIZE, EMPTY_PAGE } from '@/constants/index.constant';
@@ -28,7 +24,7 @@ export class UserService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Team) private readonly teamRepo: Repository<Team>,
     @InjectRepository(UserDevice)
-    private readonly userDeviceRepo: Repository<UserDevice>,
+    private readonly deviceRepo: Repository<UserDevice>,
     @InjectRepository(Notification)
     private readonly notificationRepo: Repository<Notification>,
   ) {}
@@ -48,7 +44,9 @@ export class UserService {
     }) as User;
   }
 
-  async login(cred: LoginDto): Promise<{ accessToken: string }> {
+  async login(
+    cred: LoginDto,
+  ): Promise<{ accessToken: string; isRegister: boolean }> {
     const user: any = await this.userRepo.findOneBy({ authId: cred.id });
     if (user) {
       if (await bcrypt.compare(cred.pwd, user.pwd)) {
@@ -56,10 +54,11 @@ export class UserService {
         const accessToken = await this.jwtService.signAsync(payload, {
           expiresIn: '3d',
         });
+        let isRegister = false;
         if (cred.fcm) {
-          await this.pushUserDevice(user.userId, cred.fcm);
+          isRegister = await this.pushUserDevice(user.id, cred.fcm);
         }
-        return { accessToken };
+        return { accessToken, isRegister };
       }
     }
     throw new Error(this.Exceptions.USER_NOT_FOUND);
@@ -68,23 +67,27 @@ export class UserService {
   async pushUserDevice(
     userId: number,
     data: { token: string; device: string },
-  ) {
-    const device = this.userDeviceRepo.create({
-      userId,
-      fcm: data.token,
-      device: data.device,
-      lastLogin: new Date(),
-    });
-    await this.userDeviceRepo.save(device);
-    // delete old device (save up to 3)
-    const devices = await this.userDeviceRepo.find({
-      where: { userId },
-      order: { lastLogin: 'ASC' },
-    });
-    if (devices.length > 3) {
-      await this.userDeviceRepo.delete(devices[0]);
+  ): Promise<boolean> {
+    const exist = await this.deviceRepo.findOneBy({ fcm: data.token });
+    if (!exist) {
+      const device = this.deviceRepo.create({
+        userId,
+        fcm: data.token,
+        device: data.device,
+        lastLogin: new Date(),
+      });
+      await this.deviceRepo.save(device);
+      // delete old device (save up to 3)
+      const devices = await this.deviceRepo.find({
+        where: { userId },
+        order: { lastLogin: 'ASC' },
+      });
+      if (devices.length > 3) {
+        await this.deviceRepo.delete(devices[0]);
+      }
+      return true;
     }
-    return;
+    return false;
   }
 
   async getUserInfo(userRef: string) {
@@ -121,7 +124,7 @@ export class UserService {
         }
       }
       filter = {
-        name: options.filter.name
+        nickname: options.filter.name
           ? Like(`%${options.filter.name}%`)
           : undefined,
         teamId,
@@ -162,10 +165,7 @@ export class UserService {
     throw new Error(this.Exceptions.USER_NOT_FOUND);
   }
 
-  async updateMyPwd(
-    userRef: string,
-    data: { oldPwd: string; newPwd: string },
-  ): Promise<void> {
+  async updateMyPwd(userRef: string, data: UserPasswordDto): Promise<void> {
     const user: any = await this.userRepo.findOneBy({ ref: userRef });
     if (user) {
       if (await bcrypt.compare(data.oldPwd, user.pwd)) {

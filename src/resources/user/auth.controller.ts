@@ -17,10 +17,30 @@ import {
 } from '@/utils/index.util';
 import { AuthGuard } from '@/guards/auth.guard';
 
+/**
+ * Auth Controller
+ * @end-points
+ * - POST `api/v1/auth/login` user login
+ * - GET `api/v1/auth/my` get my info
+ */
 @Controller('auth')
 export class AuthController {
   constructor(private readonly userService: UserService) {}
 
+  /**
+   * [**Public**]
+   *
+   * User Login
+   * @param loginDto
+   * - id: user id
+   * - password: user password
+   * - fcm?: {
+   *     token: string,
+   *     device: string
+   *   }
+   * @param res
+   * fastify response
+   */
   @Post('login')
   async login(@Body() loginDto: LoginDto, @Res() res: any) {
     if (validateBody(LoginDTOKeys, loginDto)) {
@@ -38,8 +58,18 @@ export class AuthController {
         return fallbackCatch(e, res);
       }
     }
+    return res
+      .code(HttpStatus.FORBIDDEN)
+      .send(formatResponse(HttpStatus.FORBIDDEN, 'invalid request'));
   }
 
+  /**
+   * my info
+   * @param req
+   * fastify request
+   * @param res
+   * fastify response
+   */
   @Get('my')
   @UseGuards(AuthGuard)
   async getMyInfo(@Req() req: any, @Res() res: any) {

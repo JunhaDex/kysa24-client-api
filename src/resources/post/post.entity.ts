@@ -24,8 +24,6 @@ export class Post {
   groupId: number;
   @Column({ nullable: true })
   createdAt: Date;
-  @Column({ nullable: true })
-  updatedAt: Date;
   @OneToOne(() => User)
   @JoinColumn({ name: 'author' })
   authorUser: User;

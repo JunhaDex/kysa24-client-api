@@ -23,22 +23,34 @@ import {
 } from '@/utils/index.util';
 import {
   UserDto,
+  UserPasswordDto,
   UserPasswordDTOKeys,
   UserUpdateDTOKeys,
 } from '@/resources/user/user.type';
+import { DEFAULT_PAGE_SIZE } from '@/constants/index.constant';
 
 @Controller('user')
 @UseGuards(AuthGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
+  /**
+   * List all users (must login)
+   * @param query
+   * - page: page number
+   * - size: page size
+   * - name: username search (FTS)
+   * - team-name: team name search (FTS)
+   * @param res
+   * fastify response
+   */
   @Get('secure-list')
   async listUsers(@Query() query: any, @Res() res: any) {
     let page: PageQuery;
     if (query.page || query.size) {
       page = {
         pageNo: query.page ?? 1,
-        pageSize: query.size ?? 10,
+        pageSize: query.size ?? DEFAULT_PAGE_SIZE,
       };
     }
     const list = await this.userService.listUsers({
@@ -48,18 +60,31 @@ export class UserController {
     return res.code(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
   }
 
-  @Patch('my/:id')
+  /**
+   * Update user info
+   * @param ref
+   * user ref uuidv4
+   * @param body
+   * - profileImg: user profile image url
+   * - coverImg: user cover image url
+   * - introduce: user introduce 100 words
+   * @param req
+   * fastify request `['user']`
+   * @param res
+   * fastify response
+   */
+  @Patch('my/:ref')
   async updateMyInfo(
-    @Param('id') id: string,
+    @Param('ref') ref: string,
     @Body() body: UserDto,
     @Req() req: any,
     @Res() res: any,
   ) {
-    const userRef = req['sub'];
-    if (userRef === id) {
+    const userRef = req['user'].ref;
+    if (userRef === ref) {
       if (validateBody(UserUpdateDTOKeys, body)) {
         try {
-          await this.userService.updateMyInfo(id, body);
+          await this.userService.updateMyInfo(ref, body);
           return res
             .code(HttpStatus.OK)
             .send(formatResponse(HttpStatus.OK, 'ok'));
@@ -73,22 +98,39 @@ export class UserController {
       .send(formatResponse(HttpStatus.FORBIDDEN, 'invalid request'));
   }
 
+  /**
+   * Update user password
+   * @param id
+   * @param body
+   * @param req
+   * @param res
+   */
   @Put('my/:id/pwd')
   async updateMyPwd(
     @Param('id') id: string,
-    @Body() body: any,
+    @Body() body: UserPasswordDto,
     @Req() req: any,
     @Res() res: any,
   ) {
-    const userRef = req['sub'];
+    const userRef = req['user'].ref;
     if (userRef === id) {
       if (validateBody(UserPasswordDTOKeys, body)) {
         try {
-          await this.userService.updateMyPwd(id, body.password);
+          await this.userService.updateMyPwd(id, body);
           return res
             .code(HttpStatus.OK)
             .send(formatResponse(HttpStatus.OK, 'ok'));
         } catch (e) {
+          if (
+            e.message ===
+            UserService.USER_SERVICE_EXCEPTIONS.PASSWORD_NOT_UPDATED
+          ) {
+            return res
+              .code(HttpStatus.FORBIDDEN)
+              .send(
+                formatResponse(HttpStatus.FORBIDDEN, 'password not updated'),
+              );
+          }
           return fallbackCatch(e, res);
         }
       }
@@ -98,6 +140,9 @@ export class UserController {
       .send(formatResponse(HttpStatus.FORBIDDEN, 'invalid request'));
   }
 
+  /**
+   * TODO: Check later with noti service implemented
+   */
   @Get('my/noti')
   async listMyNotifications(
     @Query() query: any,
