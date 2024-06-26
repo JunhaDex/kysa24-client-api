@@ -1,14 +1,16 @@
 ### login
+# {
+#   "fcm": {
+#     "token": "fSkGfr1yfrCQPIgqJgexCR:APA91bGzMfcN2vExbKlwEbTz0gEIqwa_8xAgZx0xp_fmvghxwkvvpTHxAlTxYeeJ3qSIeQALcwZpQqz92z5xTfzGTl86jvF1zJ4qyzebu5H1b28nTn859XwjovX9NEshY1WLWwlUBbE3",
+#     "device": "chrome os mac"
+#   }
+# }
 POST {{host}}/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "id": "dex.kim",
-  "pwd": "000000",
-  "fcm": {
-    "token": "fSkGfr1yfrCQPIgqJgexCR:APA91bGzMfcN2vExbKlwEbTz0gEIqwa_8xAgZx0xp_fmvghxwkvvpTHxAlTxYeeJ3qSIeQALcwZpQqz92z5xTfzGTl86jvF1zJ4qyzebu5H1b28nTn859XwjovX9NEshY1WLWwlUBbE3",
-    "device": "chrome os mac"
-  }
+  "id": "lee.young",
+  "pwd": "000000"
 }
 
 ### my info
@@ -50,8 +52,8 @@ Content-Type: application/json
 Authorization: Bearer {{auth}}
 
 {
-  "groupName": "공지 그룹",
-  "introduce": "공지 그룹입니다."
+  "groupName": "IT 개발자 그룹",
+  "introduce": "프로그래밍 및 소프트웨어 엔지니어링에 관심있으신 모든 분들을 환영합니다!"
 }
 
 ### get group list
@@ -69,11 +71,12 @@ Authorization: Bearer {{auth}}
 }
 
 ### follow group
-PUT {{host}}/api/v1/group/follow/855f0097-911b-43b6-b5cb-75a38b69baf8
+PUT {{host}}/api/v1/group/follow/650ee3c6-cdc8-4833-817f-a3d6f8a73c88
 Content-Type: application/json
 Authorization: Bearer {{auth}}
 
 {}
+
 ### delete group
 DELETE {{host}}/api/v1/group/855f0097-911b-43b6-b5cb-75a38b69baf8
 Content-Type: application/json
@@ -82,7 +85,64 @@ Authorization: Bearer {{auth}}
 {}
 
 ### list group feed
-GET {{host}}/api/v1/post/feed/f852ad29-62d4-4724-bf6b-5fe94c788161
+GET {{host}}/api/v1/post/feed/650ee3c6-cdc8-4833-817f-a3d6f8a73c88
+Content-Type: application/json
+
+### create post
+POST {{host}}/api/v1/post/new
 Content-Type: application/json
 Authorization: Bearer {{auth}}
+
+{
+  "groupRef": "650ee3c6-cdc8-4833-817f-a3d6f8a73c88",
+  "message": "두번째 포스트입니다.",
+  "image": "https://cdn.kysa.page/cdn.png"
+}
+
+### get single post by id
+GET {{host}}/api/v1/post/detail/1006
+Content-Type: application/json
+
+### update single post
+PATCH {{host}}/api/v1/post/1005
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{
+  "message": "수정된 포스트입니다."
+}
+
+### create reply
+POST {{host}}/api/v1/post/1006/reply/new
+Content-Type: application/json
+Authorization: Bearer {{auth2}}
+
+{
+  "message": "안녕하세요. 소통해요!"
+}
+
+### list reply by post id
+GET {{host}}/api/v1/post/1006/reply
+Content-Type: application/json
+
+### create like
+PUT {{host}}/api/v1/post/like/1006
+Content-Type: application/json
+Authorization: Bearer {{auth2}}
+
+{}
+
+### delete post
+DELETE {{host}}/api/v1/post/1005/delete
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{}
+
+### delete reply
+DELETE {{host}}/api/v1/post/1006/reply/7/delete
+Content-Type: application/json
+Authorization: Bearer {{auth2}}
+
+{}
 

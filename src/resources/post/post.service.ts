@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, QueryRunner, Repository } from 'typeorm';
+import { DataSource, In, Not, QueryRunner, Repository } from 'typeorm';
 import { Post, PostComment, PostLike } from '@/resources/post/post.entity';
 import { PageQuery, Paginate } from '@/types/index.type';
-import { Group } from '@/resources/group/group.entity';
+import { Group, GroupUserFollow } from '@/resources/group/group.entity';
 import { DEFAULT_PAGE_SIZE } from '@/constants/index.constant';
 import {
   PostCommentCreateDto,
@@ -18,6 +18,7 @@ export class PostService {
     GROUP_NOT_FOUND: 'GROUP_NOT_FOUND',
     POST_NOT_FOUND: 'POST_NOT_FOUND',
     NOT_AUTHOR: 'NOT_AN_AUTHOR',
+    GROUP_ROLE_INVALID: 'GROUP_ROLE_INVALID',
   } as const;
   private readonly Exceptions = PostService.POST_SERVICE_EXCEPTIONS;
 
@@ -26,6 +27,8 @@ export class PostService {
     @InjectRepository(PostComment) private commentRepo: Repository<PostComment>,
     @InjectRepository(PostLike) private likeRepo: Repository<PostLike>,
     @InjectRepository(Group) private groupRepo: Repository<Group>,
+    @InjectRepository(GroupUserFollow)
+    private followRepo: Repository<GroupUserFollow>,
     @InjectDataSource() private dataSource: DataSource,
   ) {}
 
@@ -59,12 +62,16 @@ export class PostService {
           },
           likes: {
             id: true,
+            deletedAt: true,
           },
           comments: {
             id: true,
+            deletedAt: true,
           },
         },
-        where: { groupId: group.id },
+        where: {
+          groupId: group.id,
+        },
         order: { createdAt: 'DESC' },
         skip,
         take,
@@ -97,8 +104,8 @@ export class PostService {
       }) as any;
       return {
         ...flatten,
-        likes: item.likes.length,
-        comments: item.comments.length,
+        likes: item.likes.filter((like) => !like.deletedAt).length,
+        comments: item.comments.filter((comment) => !comment.deletedAt).length,
       };
     });
   }
@@ -106,24 +113,39 @@ export class PostService {
   async getPostById(
     id: number,
   ): Promise<{ post: Post; comments: Paginate<PostComment> }> {
-    const post = await this.postRepo
-      .createQueryBuilder('post')
-      .leftJoinAndSelect('post.authorUser', 'authorUser')
-      .leftJoinAndSelect('post.likes', 'like')
-      .leftJoinAndSelect('post.comments', 'comment')
-      .addSelect('count(distinct like.id)', 'likeCount')
-      .addSelect('count(distinct comment.id)', 'commentCount')
-      .addSelect('authorUser.ref', 'authorRef')
-      .addSelect('authorUser.name', 'authorName')
-      .addSelect('authorUser.profileImg', 'authorProfileImg')
-      .addSelect('authorUser.geo', 'authorGeo')
-      .where('post.id = :id', { id })
-      .getOne();
+    const post = await this.postRepo.findOne({
+      select: {
+        id: true,
+        author: true,
+        image: true,
+        message: true,
+        createdAt: true,
+        authorUser: {
+          ref: true,
+          nickname: true,
+          profileImg: true,
+          coverImg: true,
+          introduce: true,
+          teamId: true,
+        },
+        likes: {
+          id: true,
+          deletedAt: true,
+        },
+        comments: {
+          id: true,
+          deletedAt: true,
+        },
+      },
+      where: { id },
+      relations: ['authorUser', 'likes', 'comments'],
+    });
     if (post) {
+      const clean = this.cleanupListItem([post]).pop() as Post;
       const comments = await this.listPostComments(id, {
-        page: { pageNo: 1 },
+        page: { pageNo: 1, pageSize: DEFAULT_PAGE_SIZE },
       });
-      return { post, comments };
+      return { post: clean, comments };
     }
     throw new Error(this.Exceptions.POST_NOT_FOUND);
   }
@@ -160,16 +182,24 @@ export class PostService {
     throw new Error(this.Exceptions.POST_NOT_FOUND);
   }
 
-  async createPost(postInput: PostCreateDto): Promise<void> {
+  async createPost(author: number, postInput: PostCreateDto): Promise<void> {
     const group = await this.groupRepo.findOneBy({ ref: postInput.groupRef });
+
     if (group) {
-      const post = this.postRepo.create();
-      post.author = postInput.author;
-      post.groupId = group.id;
-      post.image = postInput.image;
-      post.message = postInput.message;
-      await this.postRepo.save(post);
-      return;
+      const role = await this.followRepo.findOneBy({
+        groupId: group.id,
+        follower: author,
+      });
+      if (role?.role === 'writer') {
+        const post = this.postRepo.create();
+        post.author = author;
+        post.groupId = group.id;
+        post.image = postInput.image;
+        post.message = postInput.message;
+        await this.postRepo.save(post);
+        return;
+      }
+      throw new Error(this.Exceptions.GROUP_ROLE_INVALID);
     }
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
   }
@@ -192,22 +222,25 @@ export class PostService {
     throw new Error(this.Exceptions.POST_NOT_FOUND);
   }
 
-  async likePost(id: number, userId: number): Promise<void> {
+  async likePost(id: number, userId: number, undo = false): Promise<void> {
     const post = await this.postRepo.findOneBy({ id });
     if (post) {
       const like = await this.likeRepo.findOneBy({
         postId: id,
         author: userId,
       });
-      if (like) {
-        if (like.deletedAt) {
-          like.deletedAt = null;
-        } else {
+      if (undo) {
+        if (like && !like.deletedAt) {
           like.deletedAt = new Date();
+          await this.likeRepo.save(like);
         }
-        await this.likeRepo.save(like);
       } else {
-        await this.likeRepo.save({ postId: id, author: userId });
+        if (like) {
+          like.deletedAt = null;
+          await this.likeRepo.save(like);
+        } else {
+          await this.likeRepo.save({ postId: id, author: userId });
+        }
       }
       return;
     }
@@ -215,13 +248,15 @@ export class PostService {
   }
 
   async createPostComment(
+    author: number,
     postId: number,
     commentInput: PostCommentCreateDto,
   ): Promise<void> {
     const post = await this.postRepo.findOneBy({ id: postId });
     if (post) {
       const comment = this.commentRepo.create({
-        ...commentInput,
+        author,
+        message: commentInput.message,
         postId,
       });
       await this.commentRepo.save(comment);

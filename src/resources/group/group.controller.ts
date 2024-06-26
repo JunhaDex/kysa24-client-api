@@ -188,6 +188,15 @@ export class GroupController {
     }
   }
 
+  /**
+   * delete a group from creator
+   * @param gRef
+   * group reference uuidv4
+   * @param req
+   * fastify request
+   * @param res
+   * fastify response
+   */
   @Delete(':gRef')
   @UseGuards(AuthGuard)
   async deleteGroup(

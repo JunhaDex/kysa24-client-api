@@ -201,7 +201,7 @@ export class GroupService {
         groupId: group.id,
         follower,
         isMust: options?.isMust ?? false,
-        role: options?.role ?? 'reader',
+        role: options?.role ?? 'writer',
       });
       await this.followRepo.save(follow);
       return;

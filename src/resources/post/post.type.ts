@@ -1,21 +1,17 @@
 import { DTOKeys } from '@/types/index.type';
 
 export const PostCreateDTOKeys: DTOKeys = {
-  author: {
-    type: 'number',
-    required: true,
-  },
-  image: {
+  groupRef: {
     type: 'string',
-    required: false,
+    required: true,
   },
   message: {
     type: 'string',
     required: true,
   },
-  groupRef: {
+  image: {
     type: 'string',
-    required: true,
+    required: false,
   },
 };
 
@@ -43,10 +39,6 @@ export interface PostUpdateDto {
 }
 
 export const PostCommentCreateDTOKeys: DTOKeys = {
-  author: {
-    type: 'number',
-    required: true,
-  },
   message: {
     type: 'string',
     required: true,
