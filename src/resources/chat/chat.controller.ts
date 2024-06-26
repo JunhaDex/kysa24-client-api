@@ -15,17 +15,17 @@ export class ChatController {
     return 'countChats';
   }
 
-  @Get('history/:uid')
+  @Get('history/:ref')
   async getChatHistory(
-    @Param('uid') uid: string,
+    @Param('ref') ref: string,
     @Query() query: any,
     @Res() res: any,
   ) {
     return 'getChatHistory';
   }
 
-  @Put('read/:uid')
-  async markAsRead(@Param('uid') uid: string, @Res() res: any) {
+  @Put('read/:ref')
+  async markAsRead(@Param('ref') ref: string, @Res() res: any) {
     return 'markAsRead';
   }
 
