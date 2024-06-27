@@ -3,10 +3,10 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import { ChatRoom } from '@/resources/chat/chat_room.entity';
 
 @Entity('chat')
 export class Chat {
@@ -25,24 +25,8 @@ export class Chat {
   @Column({ nullable: true })
   updatedAt: Date;
   @ManyToOne(() => ChatRoom)
-  @JoinColumn({ name: 'roomId' })
+  @JoinColumn({ name: 'room_id' })
   room: ChatRoom;
-}
-
-@Entity('chat_room')
-export class ChatRoom {
-  @PrimaryGeneratedColumn()
-  id: number;
-  @Column({ unique: true })
-  ref: string;
-  @Column({ type: 'json' })
-  members: string[];
-  @Column({ nullable: true })
-  createdAt: Date;
-  @Column({ nullable: true })
-  updatedAt: Date;
-  @OneToMany(() => Chat, (chat) => chat.room)
-  chats: Chat[];
 }
 
 @Entity('chat_room_view')
@@ -64,7 +48,7 @@ export class ChatRoomView {
   @Column({ nullable: true })
   updatedAt: Date;
   @OneToOne(() => ChatRoom)
-  @JoinColumn({ name: 'roomId' })
+  @JoinColumn({ name: 'room_id' })
   room: ChatRoom;
 }
 

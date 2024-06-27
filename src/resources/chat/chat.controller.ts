@@ -1,13 +1,35 @@
-import { Controller, Get, Param, Post, Put, Query, Res } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import { ChatService } from './chat.service';
+import { PageQuery } from '@/types/index.type';
+import { AuthGuard } from '@/guards/auth.guard';
 
 @Controller('chat')
+@UseGuards(AuthGuard)
 export class ChatController {
   constructor(private readonly chatService: ChatService) {}
 
   @Get('recent')
-  async listRecentChats(@Query() query: any, @Res() res: any) {
-    return 'getRecentChats';
+  async listRecentChats(@Query() query: any, @Req() req: any, @Res() res: any) {
+    const user = req['user'].id;
+    let page: PageQuery;
+    if (query.page || query.size) {
+      page = {
+        pageNo: query.page ?? 1,
+        pageSize: query.size ?? 10,
+      };
+    }
+    const list = await this.chatService.listChatRooms(user, { page });
+    return res.status(200).send(list);
   }
 
   @Get('count')

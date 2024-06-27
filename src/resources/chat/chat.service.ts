@@ -3,7 +3,6 @@ import { Injectable, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@/guards/auth.guard';
 import {
   Chat,
-  ChatRoom,
   ChatRoomView,
   ExpressTicket,
 } from '@/resources/chat/chat.entity';
@@ -13,6 +12,8 @@ import { PageQuery, Paginate } from '@/types/index.type';
 import { DEFAULT_PAGE_SIZE, EMPTY_PAGE } from '@/constants/index.constant';
 import { ChatRoomDao } from '@/resources/chat/chat.type';
 import { User } from '@/resources/user/user.entity';
+import { ChatRoom } from '@/resources/chat/chat_room.entity';
+import { flattenObject } from '@/utils/index.util';
 
 @Injectable()
 @UseGuards(AuthGuard)
@@ -51,6 +52,7 @@ export class ChatService {
         isBlock: true,
         lastRead: true,
         room: {
+          ref: true,
           chats: {
             id: true,
             createdAt: true,
@@ -67,17 +69,44 @@ export class ChatService {
         room: { chats: { createdAt: 'DESC' } },
       },
     });
-    const listChats = await this.chatRepo
+    const listChatsRaw = await this.chatRepo
       .createQueryBuilder('chat')
-      .addSelect(['MAX(chat.createdAt) as max_created_at'])
-      .groupBy('chat.roomId')
-      .where('chat.roomId IN (:...rooms)', {
-        rooms: rooms.map((r) => r.roomId),
-      })
+      .innerJoin(
+        (sq) => {
+          return sq
+            .select('room_id, MAX(created_at) as max_created_at')
+            .from(Chat, 'chat')
+            .where('room_id IN (:...roomIds)', {
+              roomIds: rooms.map((r) => r.roomId),
+            })
+            .groupBy('room_id');
+        },
+        'chat_max',
+        'chat_max.room_id = chat.room_id AND chat_max.max_created_at = chat.created_at',
+      )
       .getRawMany();
-
+    const listChats = listChatsRaw.map((chatRaw) => {
+      return flattenObject(chatRaw, {
+        exclude: ['max_created_at'],
+        alias: {
+          chat_id: 'chatId',
+          chat_room_id: 'roomId',
+          chat_sender: 'sender',
+          chat_message: 'message',
+          chat_encoded: 'encoded',
+          chat_created_at: 'createdAt',
+          chat_updated_at: 'updatedAt',
+        },
+      }) as Chat[];
+    });
     const chatRooms = rooms.map((room) => {
-      return this.getLatestChat(room, listChats);
+      const flat = flattenObject(room, {
+        exclude: ['room.chats'],
+        alias: {
+          'room.ref': 'ref',
+        },
+      }) as ChatRoomView;
+      return this.getLatestChat(flat, listChats);
     });
     return {
       meta: {
@@ -190,7 +219,9 @@ export class ChatService {
     }
   }
 
-  async countTicketRemainToday(user: number): Promise<number> {}
+  async countTicketRemainToday(user: number): Promise<number> {
+    return 0;
+  }
 
   async sendUserExpressTicket(user: number, recipient: number): Promise<void> {
     const room = await this.getOrGenRoom(user, recipient);
