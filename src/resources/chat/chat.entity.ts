@@ -18,6 +18,8 @@ export class Chat {
   sender: number;
   @Column()
   message: string;
+  @Column({ default: false })
+  encoded: boolean;
   @Column({ nullable: true })
   createdAt: Date;
   @Column({ nullable: true })
@@ -64,4 +66,18 @@ export class ChatRoomView {
   @OneToOne(() => ChatRoom)
   @JoinColumn({ name: 'roomId' })
   room: ChatRoom;
+}
+
+@Entity('user_user_ticket')
+export class ExpressTicket {
+  @PrimaryGeneratedColumn()
+  id: number;
+  @Column()
+  userId: number;
+  @Column()
+  recipient: number;
+  @Column({ nullable: true })
+  createdAt: Date;
+  @Column({ nullable: true })
+  updatedAt: Date;
 }
