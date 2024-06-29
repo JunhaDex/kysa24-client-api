@@ -6,7 +6,7 @@ import {
   ChatRoomView,
   ExpressTicket,
 } from '@/resources/chat/chat.entity';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, In, Raw, Repository } from 'typeorm';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { PageQuery, Paginate } from '@/types/index.type';
 import { DEFAULT_PAGE_SIZE, EMPTY_PAGE } from '@/constants/index.constant';
@@ -20,6 +20,7 @@ import { flattenObject } from '@/utils/index.util';
 export class ChatService {
   static CHAT_SERVICE_EXCEPTIONS = {
     ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
+    INVALID_USER: 'INVALID_USER',
   } as const;
   private readonly Exceptions = ChatService.CHAT_SERVICE_EXCEPTIONS;
 
@@ -36,13 +37,14 @@ export class ChatService {
 
   async listChatRooms(
     user: number,
-    options?: { page: PageQuery },
+    options?: { page?: PageQuery; isBlock?: boolean },
   ): Promise<Paginate<ChatRoomDao>> {
     const size = options?.page ? options.page.pageSize : DEFAULT_PAGE_SIZE;
     const skip = options?.page
       ? (options.page.pageNo - 1) * options.page.pageSize
       : 0;
     const take = options?.page ? options.page.pageSize : size;
+    const blockType = !!options?.isBlock;
     const [rooms, count] = await this.roomViewRepo.findAndCount({
       select: {
         id: true,
@@ -59,7 +61,7 @@ export class ChatService {
           },
         },
       },
-      where: { userId: user },
+      where: { userId: user, isBlock: blockType },
       skip,
       take,
       relations: {
@@ -126,51 +128,63 @@ export class ChatService {
   }
 
   private async getOrGenRoom(user: number, target: number): Promise<ChatRoom> {
-    const sorted = [user, target].sort();
-    const users = await this.userRepo.find({
-      select: ['id', 'nickname'],
-      where: {
-        id: In(sorted),
-      },
-    });
-    const titleWithNick = (except: number) => {
-      return users
-        .filter((u) => u.id !== except)
-        .map((u) => u.nickname)
-        .join(', ');
-    };
-    const room = await this.roomRepo.findOne({
-      where: { members: JSON.stringify(sorted) },
-    });
-    if (room) {
-      return room;
-    } else {
-      const newRoom = this.roomRepo.create();
-      newRoom.ref = uuidv4();
-      newRoom.members = sorted.map((id) => id.toString());
-      const views = sorted.map((id) => {
-        const view = this.roomViewRepo.create();
-        view.userId = id;
-        view.title = titleWithNick(id);
-        view.isBlock = false;
-        view.lastRead = 0;
-        return view;
+    const userExists = await this.userRepo.findOneBy({ id: user });
+    const targetExists = await this.userRepo.findOneBy({ id: target });
+    if (user !== target && userExists && targetExists) {
+      const sorted = [user, target].sort();
+      const users = await this.userRepo.find({
+        select: ['id', 'nickname'],
+        where: {
+          id: In(sorted),
+        },
       });
-      const queryRunner = this.dataSource.createQueryRunner();
-      await queryRunner.connect();
-      await queryRunner.startTransaction();
-      try {
-        await queryRunner.manager.save(newRoom);
-        await queryRunner.manager.save(views);
-        await queryRunner.commitTransaction();
-      } catch (err) {
-        await queryRunner.rollbackTransaction();
-        throw err;
-      } finally {
-        await queryRunner.release();
+      const titleWithNick = (except: number) => {
+        return users
+          .filter((u) => u.id !== except)
+          .map((u) => u.nickname)
+          .join(', ');
+      };
+      const room = await this.roomRepo.findOne({
+        where: { members: Raw(`json_array(${sorted.join(',')})`) },
+      });
+      console.log('room', room);
+      if (room) {
+        return room;
+      } else {
+        const newRoom = this.roomRepo.create();
+        newRoom.ref = uuidv4();
+        newRoom.members = sorted.map((id) => Number(id));
+        const views = sorted.map((id) => {
+          const view = this.roomViewRepo.create();
+          view.userId = id;
+          view.title = titleWithNick(id);
+          view.isBlock = false;
+          view.lastRead = 0;
+          return view;
+        });
+        const queryRunner = this.dataSource.createQueryRunner();
+        await queryRunner.connect();
+        await queryRunner.startTransaction();
+        try {
+          const rc = await queryRunner.manager.save(newRoom);
+          console.log('room created', rc.id);
+          await queryRunner.manager.save(
+            views.map((v) => {
+              v.roomId = rc.id;
+              return v;
+            }),
+          );
+          await queryRunner.commitTransaction();
+        } catch (err) {
+          await queryRunner.rollbackTransaction();
+          throw err;
+        } finally {
+          await queryRunner.release();
+        }
+        return await this.roomRepo.findOneBy({ id: newRoom.id });
       }
-      return await this.roomRepo.findOneBy({ id: newRoom.id });
     }
+    throw new Error(this.Exceptions.INVALID_USER);
   }
 
   async getTotalUnreadCount(user: number): Promise<number> {
@@ -226,15 +240,34 @@ export class ChatService {
   async sendUserExpressTicket(user: number, recipient: number): Promise<void> {
     const room = await this.getOrGenRoom(user, recipient);
     if (room) {
+      const users = await this.userRepo.find({
+        select: ['ref', 'nickname', 'profileImg'],
+        where: {
+          id: In([user, recipient]),
+        },
+      });
       const ticket = this.ticketRepo.create();
       ticket.userId = user;
       ticket.recipient = recipient;
       const chatMsg = this.chatRepo.create();
       chatMsg.roomId = room.id;
       chatMsg.sender = user;
-      chatMsg.message = 'express_ticket';
+      chatMsg.message = ':::type__express_ticket';
       chatMsg.encoded = true;
-      await this.ticketRepo.save(ticket);
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      try {
+        await queryRunner.manager.save(ticket);
+        await queryRunner.manager.save(chatMsg);
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
+      }
+      return;
     }
     throw new Error(this.Exceptions.ROOM_NOT_FOUND);
   }
@@ -243,7 +276,19 @@ export class ChatService {
     user: number,
     blocker: number,
     isBlock = true,
-  ): Promise<void> {}
+  ): Promise<void> {
+    const room = await this.getOrGenRoom(user, blocker);
+    if (room) {
+      const blockView = await this.roomViewRepo.findOne({
+        where: { roomId: room.id, userId: user },
+      });
+      if (blockView) {
+        blockView.isBlock = isBlock;
+        await this.roomViewRepo.save(blockView);
+      }
+    }
+    return;
+  }
 
   async pushOnlineStatus(user: number, isOnline = true): Promise<void> {}
 }

@@ -19,6 +19,7 @@ import { ChatModule } from '@/resources/chat/chat.module';
 import { UploadModule } from '@/resources/upload/upload.module';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { AuthMiddleware } from '@/middlewares/auth.middleware';
+import { NotiModule } from '@/resources/noti/noti.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { AuthMiddleware } from '@/middlewares/auth.middleware';
     GroupModule,
     ChatModule,
     UploadModule,
+    NotiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

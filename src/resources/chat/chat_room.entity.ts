@@ -8,7 +8,7 @@ export class ChatRoom {
   @Column({ unique: true })
   ref: string;
   @Column({ type: 'json' })
-  members: string[];
+  members: number[];
   @Column({ nullable: true })
   createdAt: Date;
   @Column({ nullable: true })
