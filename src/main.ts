@@ -8,7 +8,13 @@ import {
 import { Logger } from '@nestjs/common';
 import userAgent from 'fastify-user-agent';
 
+import dayjs from 'dayjs';
+import utc from 'dayjs/plugin/utc';
+import timezone from 'dayjs/plugin/timezone';
+
 async function bootstrap() {
+  dayjs.extend(utc);
+  dayjs.extend(timezone);
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({ logger: true }),
@@ -20,7 +26,7 @@ async function bootstrap() {
       },
     },
   );
-  app.register(userAgent);
+  await app.register(userAgent);
   app.setGlobalPrefix('api/v1');
   await app.listen(3001);
   Logger.log(`Server running on port 3001`);

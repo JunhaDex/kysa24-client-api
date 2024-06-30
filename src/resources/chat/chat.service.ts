@@ -6,14 +6,19 @@ import {
   ChatRoomView,
   ExpressTicket,
 } from '@/resources/chat/chat.entity';
-import { DataSource, In, Raw, Repository } from 'typeorm';
+import { DataSource, In, LessThanOrEqual, Raw, Repository } from 'typeorm';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { PageQuery, Paginate } from '@/types/index.type';
-import { DEFAULT_PAGE_SIZE, EMPTY_PAGE } from '@/constants/index.constant';
+import {
+  DEFAULT_PAGE_SIZE,
+  DEFAULT_TICKET_COUNT,
+  EMPTY_PAGE,
+} from '@/constants/index.constant';
 import { ChatRoomDao } from '@/resources/chat/chat.type';
 import { User } from '@/resources/user/user.entity';
 import { ChatRoom } from '@/resources/chat/chat_room.entity';
 import { flattenObject } from '@/utils/index.util';
+import dayjs from 'dayjs';
 
 @Injectable()
 @UseGuards(AuthGuard)
@@ -188,20 +193,32 @@ export class ChatService {
   }
 
   async getTotalUnreadCount(user: number): Promise<number> {
-    return 0;
+    const countByRoom = await this.roomViewRepo
+      .createQueryBuilder('view')
+      .select(['view.room_id AS room_id', 'COUNT(view.id) AS unread_count'])
+      .leftJoin(Chat, 'chat', 'chat.room_id = view.room_id')
+      .where('view.user_id = :user', { user })
+      .andWhere('chat.id > view.last_read')
+      .andWhere('view.is_block = false')
+      .groupBy('view.room_id')
+      .getRawMany();
+    return countByRoom.reduce((acc, item) => {
+      return acc + Number(item.unread_count);
+    }, 0);
   }
 
   async listChatHistory(
     roomRef: string,
-    options?: { page: PageQuery },
+    options?: { page?: PageQuery; anchor?: number },
   ): Promise<Paginate<Chat>> {
     const room = await this.roomRepo.findOne({ where: { ref: roomRef } });
+    const anchor = options?.anchor ?? Number.MAX_SAFE_INTEGER;
     if (room) {
       const size = options?.page ? options.page.pageSize : DEFAULT_PAGE_SIZE;
       const skip = options?.page ? (options.page.pageNo - 1) * size : 0;
       const take = options?.page ? options.page.pageSize : size;
       const [chats, count] = await this.chatRepo.findAndCount({
-        where: { roomId: room.id },
+        where: { roomId: room.id, id: LessThanOrEqual(anchor) },
         skip,
         take,
         order: { createdAt: 'DESC' },
@@ -219,22 +236,39 @@ export class ChatService {
     return EMPTY_PAGE as Paginate<Chat>;
   }
 
-  async markAsRead(user: number, room: number): Promise<void> {
-    const roomView = await this.roomViewRepo.findOne({
-      where: { roomId: room, userId: user },
-    });
-    const latestChat = await this.chatRepo.findOne({
-      where: { roomId: room },
-      order: { createdAt: 'DESC' },
-    });
-    if (latestChat && roomView) {
-      roomView.lastRead = latestChat.id;
-      await this.roomViewRepo.save(roomView);
+  async markAsRead(user: number, room: string): Promise<void> {
+    const roomRead = await this.roomRepo.findOne({ where: { ref: room } });
+    if (roomRead) {
+      const roomView = await this.roomViewRepo.findOne({
+        where: { roomId: roomRead.id, userId: user },
+      });
+      const latestChat = await this.chatRepo.findOne({
+        where: { roomId: roomRead.id },
+        order: { createdAt: 'DESC' },
+      });
+      if (latestChat && roomView) {
+        roomView.lastRead = latestChat.id;
+        await this.roomViewRepo.save(roomView);
+      }
+      return;
     }
+    throw new Error(this.Exceptions.ROOM_NOT_FOUND);
   }
 
   async countTicketRemainToday(user: number): Promise<number> {
-    return 0;
+    const now = Date.now();
+    const today = dayjs(now).tz().format('YYYY-MM-DD 23:59:59');
+    const yesterday = dayjs(now).tz().subtract(1, 'day').format('YYYY-MM-DD');
+    const dayMax = DEFAULT_TICKET_COUNT;
+    const count = await this.ticketRepo.count({
+      where: {
+        userId: user,
+        createdAt: Raw(
+          `created_at > '${yesterday}' AND created_at <= '${today}'`,
+        ),
+      },
+    });
+    return dayMax - count > 0 ? dayMax - count : 0;
   }
 
   async sendUserExpressTicket(user: number, recipient: number): Promise<void> {

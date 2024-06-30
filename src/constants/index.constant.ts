@@ -1,6 +1,7 @@
 import { Paginate } from '@/types/index.type';
 
 export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_TICKET_COUNT = 10;
 export const EMPTY_PAGE: Paginate<unknown> = {
   meta: {
     pageNo: 1,
