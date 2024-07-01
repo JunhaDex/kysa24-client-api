@@ -3,13 +3,13 @@ import { formatResponse } from '@/utils/index.util';
 import { RESPONSE_HEADER_RAW } from '@/constants/index.constant';
 
 @Injectable()
-export class AuthMiddleware implements NestMiddleware {
+export class UploadMiddleware implements NestMiddleware {
   constructor() {}
 
   use(req: any, res: any, next: () => void) {
     if (req.method === 'options') return next();
-    const [type, token] = req.headers['authorization']?.split(' ') ?? [];
-    if (type === 'Bearer' && token) {
+    const contentType = req.headers['content-type'];
+    if (contentType && contentType.includes('multipart/form-data')) {
       return next();
     }
     res.writeHead(HttpStatus.FORBIDDEN, RESPONSE_HEADER_RAW);

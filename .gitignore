@@ -26,6 +26,9 @@ logs
 
 # dotenv environment variable files
 .env
+*.env
+!.env.example
+secret
 
 # temp directory
 .temp

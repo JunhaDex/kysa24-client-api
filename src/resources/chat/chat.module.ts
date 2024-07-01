@@ -8,7 +8,9 @@ import {
   ExpressTicket,
 } from '@/resources/chat/chat.entity';
 import { ChatRoom } from '@/resources/chat/chat_room.entity';
-import { User } from '@/resources/user/user.entity';
+import { User, UserDevice } from '@/resources/user/user.entity';
+import { NotiService } from '@/resources/noti/noti.service';
+import { Notification } from '@/resources/noti/noti.entity';
 
 @Module({
   imports: [
@@ -18,9 +20,11 @@ import { User } from '@/resources/user/user.entity';
       ChatRoomView,
       ExpressTicket,
       User,
+      Notification,
+      UserDevice,
     ]),
   ],
   controllers: [ChatController],
-  providers: [ChatService],
+  providers: [ChatService, NotiService],
 })
 export class ChatModule {}

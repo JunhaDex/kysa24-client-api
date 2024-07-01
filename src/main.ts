@@ -6,6 +6,7 @@ import {
   NestFastifyApplication,
 } from '@nestjs/platform-fastify';
 import { Logger } from '@nestjs/common';
+import multipart from '@fastify/multipart';
 import userAgent from 'fastify-user-agent';
 
 import dayjs from 'dayjs';
@@ -27,6 +28,7 @@ async function bootstrap() {
     },
   );
   await app.register(userAgent);
+  await app.register(multipart);
   app.setGlobalPrefix('api/v1');
   await app.listen(3001);
   Logger.log(`Server running on port 3001`);

@@ -20,6 +20,7 @@ import { UploadModule } from '@/resources/upload/upload.module';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { AuthMiddleware } from '@/middlewares/auth.middleware';
 import { NotiModule } from '@/resources/noti/noti.module';
+import { UploadMiddleware } from '@/middlewares/upload.middleware';
 
 @Module({
   imports: [
@@ -69,5 +70,9 @@ export class AppModule implements NestModule {
         { path: '*', method: RequestMethod.PUT },
         { path: '*', method: RequestMethod.DELETE },
       );
+    consumer.apply(AuthMiddleware, UploadMiddleware).forRoutes({
+      path: 'upload/*',
+      method: RequestMethod.POST,
+    });
   }
 }

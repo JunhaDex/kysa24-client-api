@@ -11,6 +11,9 @@ import {
   PostUpdateDto,
 } from '@/resources/post/post.type';
 import { flattenObject } from '@/utils/index.util';
+import { NotiService } from '@/resources/noti/noti.service';
+import { GroupMessageData, PostMessageData } from '@/resources/noti/noti.type';
+import { User } from '@/resources/user/user.entity';
 
 @Injectable()
 export class PostService {
@@ -29,7 +32,9 @@ export class PostService {
     @InjectRepository(Group) private groupRepo: Repository<Group>,
     @InjectRepository(GroupUserFollow)
     private followRepo: Repository<GroupUserFollow>,
+    @InjectRepository(User) private userRepo: Repository<User>,
     @InjectDataSource() private dataSource: DataSource,
+    private readonly notiService: NotiService,
   ) {}
 
   async listPosts(
@@ -184,8 +189,12 @@ export class PostService {
 
   async createPost(author: number, postInput: PostCreateDto): Promise<void> {
     const group = await this.groupRepo.findOneBy({ ref: postInput.groupRef });
-
     if (group) {
+      const pa = await this.userRepo.findOneBy({ id: author });
+      const followers = await this.followRepo.findBy({
+        groupId: group.id,
+      });
+      const ids = followers.map((f) => f.follower);
       const role = await this.followRepo.findOneBy({
         groupId: group.id,
         follower: author,
@@ -196,7 +205,12 @@ export class PostService {
         post.groupId = group.id;
         post.image = postInput.image;
         post.message = postInput.message;
-        await this.postRepo.save(post);
+        const newPost = await this.postRepo.save(post);
+        await this.notiService.publishTopic(ids, 'group', {
+          groupRef: group.ref,
+          postId: newPost.id,
+          authorNickname: pa.nickname,
+        } as GroupMessageData);
         return;
       }
       throw new Error(this.Exceptions.GROUP_ROLE_INVALID);
@@ -254,12 +268,17 @@ export class PostService {
   ): Promise<void> {
     const post = await this.postRepo.findOneBy({ id: postId });
     if (post) {
+      const ca = await this.userRepo.findOneBy({ id: author });
       const comment = this.commentRepo.create({
         author,
         message: commentInput.message,
         postId,
       });
       await this.commentRepo.save(comment);
+      await this.notiService.sendNotification(post.author, 'post', {
+        postId,
+        authorNickname: ca.nickname,
+      } as PostMessageData);
       return;
     }
     throw new Error(this.Exceptions.POST_NOT_FOUND);

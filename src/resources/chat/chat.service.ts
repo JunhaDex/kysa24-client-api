@@ -19,6 +19,10 @@ import { User } from '@/resources/user/user.entity';
 import { ChatRoom } from '@/resources/chat/chat_room.entity';
 import { flattenObject } from '@/utils/index.util';
 import dayjs from 'dayjs';
+import { NotiService } from '@/resources/noti/noti.service';
+import { messaging } from 'firebase-admin';
+import NotificationMessagePayload = messaging.NotificationMessagePayload;
+import { TicketMessageData } from '@/resources/noti/noti.type';
 
 @Injectable()
 @UseGuards(AuthGuard)
@@ -38,6 +42,7 @@ export class ChatService {
     private readonly ticketRepo: Repository<ExpressTicket>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly notiService: NotiService,
   ) {}
 
   async listChatRooms(
@@ -301,6 +306,10 @@ export class ChatService {
       } finally {
         await queryRunner.release();
       }
+      await this.notiService.sendNotification(recipient, 'ticket', {
+        roomRef: room.ref,
+        fromRef: users.filter((u) => u.id === user)[0].ref,
+      } as TicketMessageData);
       return;
     }
     throw new Error(this.Exceptions.ROOM_NOT_FOUND);

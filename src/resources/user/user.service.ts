@@ -3,13 +3,17 @@ import { Injectable } from '@nestjs/common';
 import { LoginDto, UserDto, UserPasswordDto } from '@/resources/user/user.type';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Like, Repository } from 'typeorm';
+import { In, LessThanOrEqual, Like, Repository } from 'typeorm';
 import { User, UserDevice } from '@/resources/user/user.entity';
 import { Notification } from '@/resources/noti/noti.entity';
 import { Team } from '@/resources/user/team.entity';
 import { flattenObject } from '@/utils/index.util';
 import { PageQuery, Paginate } from '@/types/index.type';
-import { DEFAULT_PAGE_SIZE, EMPTY_PAGE } from '@/constants/index.constant';
+import {
+  DEFAULT_MAX_DEVICE_SAVE,
+  DEFAULT_PAGE_SIZE,
+  EMPTY_PAGE,
+} from '@/constants/index.constant';
 
 @Injectable()
 export class UserService {
@@ -27,7 +31,7 @@ export class UserService {
     @InjectRepository(UserDevice)
     private readonly deviceRepo: Repository<UserDevice>,
     @InjectRepository(Notification)
-    private readonly notificationRepo: Repository<Notification>,
+    private readonly notiRepo: Repository<Notification>,
   ) {}
 
   private safeUserInfo(user: User): User {
@@ -83,7 +87,7 @@ export class UserService {
         where: { userId },
         order: { lastLogin: 'ASC' },
       });
-      if (devices.length > 3) {
+      if (devices.length > DEFAULT_MAX_DEVICE_SAVE) {
         await this.deviceRepo.delete(devices[0]);
       }
       return true;
@@ -170,7 +174,10 @@ export class UserService {
     const user: any = await this.userRepo.findOneBy({ ref: userRef });
     if (user) {
       if (await bcrypt.compare(data.oldPwd, user.pwd)) {
-        user.pwd = await bcrypt.hash(data.newPwd, 10);
+        // hash password
+        const round = Number(process.env.BCRYPT_SALT_ROUND);
+        const salt = await bcrypt.genSalt(round);
+        user.pwd = await bcrypt.hash(data.newPwd, salt);
         await this.userRepo.save(user);
         return;
       }
@@ -191,9 +198,13 @@ export class UserService {
         ? (options.page.pageNo - 1) * options.page.pageSize
         : 0;
       const take = options?.page ? options.page.pageSize : size;
+      const start = options?.page ? options.page.pageStart : undefined;
       // query notification table
-      const [list, count] = await this.notificationRepo.findAndCount({
-        where: { target: user.id },
+      const [list, count] = await this.notiRepo.findAndCount({
+        where: {
+          target: user.id,
+          id: start ? LessThanOrEqual(start) : undefined,
+        },
         skip,
         take,
       });
@@ -216,7 +227,11 @@ export class UserService {
   ): Promise<void> {
     const user = await this.userRepo.findOneBy({ ref: userRef });
     if (user) {
-      await this.notificationRepo.delete(data);
+      const myNoti = await this.notiRepo.find({
+        select: ['id'],
+        where: { target: user.id, id: In(data) },
+      });
+      await this.notiRepo.delete(myNoti.map((n) => n.id));
       return;
     }
     throw new Error(this.Exceptions.USER_NOT_FOUND);

@@ -7,9 +7,13 @@ export class Notification {
   @Column()
   target: number;
   @Column()
-  type: string; // chat | group | post
+  type: string; // ticket:::* | group:::* | post:::* | system:::* (also topic)
+  @Column()
+  title: string;
   @Column()
   message: string;
+  @Column()
+  payload: string;
   @Column({ nullable: true })
   readAt: Date;
   @Column({ nullable: true })
