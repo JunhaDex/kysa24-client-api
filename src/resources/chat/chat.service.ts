@@ -81,6 +81,7 @@ export class ChatService {
         room: { chats: { createdAt: 'DESC' } },
       },
     });
+    if (!rooms.length) return EMPTY_PAGE as Paginate<ChatRoomDao>;
     const listChatsRaw = await this.chatRepo
       .createQueryBuilder('chat')
       .innerJoin(

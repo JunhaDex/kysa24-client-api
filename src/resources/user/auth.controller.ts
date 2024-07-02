@@ -33,7 +33,7 @@ export class AuthController {
    * User Login
    * @param loginDto
    * - id: user id
-   * - password: user password
+   * - pwd: user password
    * - fcm?: {
    *     token: string,
    *     device: string

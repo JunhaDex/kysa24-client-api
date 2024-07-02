@@ -47,7 +47,7 @@ export class ChatController {
     }
     const isBlock = query['is-block'] === 'true';
     const list = await this.chatService.listChatRooms(user, { page, isBlock });
-    return res.status(200).send(list);
+    return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
   }
 
   /**
