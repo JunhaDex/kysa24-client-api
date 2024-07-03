@@ -122,7 +122,10 @@ export class GroupService {
   private addGroupPosts(groups: Group[], posts: any): Group[] {
     const flattened = groups.map((group) => {
       const flatten = flattenObject(group, {
-        exclude: ['creatorUser.ref', 'creatorUser.nickname'],
+        alias: {
+          'creatorUser.ref': 'creatorRef',
+          'creatorUser.nickname': 'creatorNickname',
+        },
       }) as any;
       return {
         ...flatten,
@@ -147,6 +150,47 @@ export class GroupService {
         });
       return group;
     });
+  }
+
+  async getGroupByRef(groupRef: string): Promise<Group> {
+    const group = await this.groupRepo.findOne({
+      select: {
+        id: true,
+        ref: true,
+        creator: true,
+        groupName: true,
+        profileImg: true,
+        coverImg: true,
+        introduce: true,
+        isShow: true,
+        priority: true,
+        creatorUser: {
+          ref: true,
+          nickname: true,
+        },
+        posts: {
+          createdAt: true,
+        },
+        followers: {
+          id: true,
+        },
+      },
+      where: { ref: groupRef },
+      relations: ['creatorUser', 'posts', 'followers'],
+    });
+    if (group) {
+      const clean = flattenObject(group, {
+        alias: {
+          'creatorUser.ref': 'creatorRef',
+          'creatorUser.nickname': 'creatorNickname',
+        },
+      }) as any;
+      return {
+        ...clean,
+        followers: group.followers.length,
+      } as Group;
+    }
+    throw new Error(this.Exceptions.GROUP_NOT_FOUND);
   }
 
   async createGroup(group: GroupCreateDto): Promise<void> {
@@ -197,13 +241,38 @@ export class GroupService {
   ): Promise<void> {
     const group = await this.groupRepo.findOneBy({ ref: groupRef });
     if (group) {
-      const follow = this.followRepo.create({
+      const follow = await this.followRepo.findOneBy({
         groupId: group.id,
         follower,
-        isMust: options?.isMust ?? false,
-        role: options?.role ?? 'writer',
       });
-      await this.followRepo.save(follow);
+      if (!follow) {
+        const newFollow = this.followRepo.create({
+          groupId: group.id,
+          follower,
+          isMust: options?.isMust ?? false,
+          role: options?.role ?? 'writer',
+        });
+        await this.followRepo.save(newFollow);
+      }
+      return;
+    }
+    throw new Error(this.Exceptions.GROUP_NOT_FOUND);
+  }
+
+  async unfollowGroup(groupRef: string, follower: number): Promise<void> {
+    const group = await this.groupRepo.findOneBy({ ref: groupRef });
+    if (group) {
+      const follow = await this.followRepo.findOneBy({
+        groupId: group.id,
+        follower,
+      });
+      if (follow) {
+        if (!follow.isMust) {
+          await this.followRepo.delete(follow.id);
+          return;
+        }
+        throw new Error(this.Exceptions.GROUP_UNAUTHORIZED);
+      }
       return;
     }
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);

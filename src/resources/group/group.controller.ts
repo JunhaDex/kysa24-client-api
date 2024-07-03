@@ -60,6 +60,23 @@ export class GroupController {
     return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
   }
 
+  @Get(':gRef')
+  async getGroupById(@Param('gRef') gRef: string, @Res() res: any) {
+    try {
+      const group = await this.groupService.getGroupByRef(gRef);
+      return res
+        .status(HttpStatus.OK)
+        .send(formatResponse(HttpStatus.OK, group));
+    } catch (e) {
+      if (e.message === GroupService.GROUP_SERVICE_EXCEPTIONS.GROUP_NOT_FOUND) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .send(formatResponse(HttpStatus.NOT_FOUND, 'group not found'));
+      }
+      return fallbackCatch(e, res);
+    }
+  }
+
   /**
    * Create a new group
    * @param body
@@ -156,6 +173,8 @@ export class GroupController {
    * Follow a group
    * @param gRef
    * group reference uuidv4
+   * @param query
+   * - undo: boolean (optional)
    * @param req
    * fastify request
    * @param res
@@ -165,12 +184,18 @@ export class GroupController {
   @UseGuards(AuthGuard)
   async followGroup(
     @Param('gRef') gRef: string,
+    @Query() query: any,
     @Req() req: any,
     @Res() res: any,
   ) {
     const follower = req['user'].id;
+    const isUndo = query?.undo === 'true';
     try {
-      await this.groupService.followGroup(gRef, follower);
+      if (isUndo) {
+        await this.groupService.unfollowGroup(gRef, follower);
+      } else {
+        await this.groupService.followGroup(gRef, follower);
+      }
       return res
         .status(HttpStatus.OK)
         .send(formatResponse(HttpStatus.OK, 'group followed'));
@@ -179,6 +204,17 @@ export class GroupController {
         return res
           .status(HttpStatus.NOT_FOUND)
           .send(formatResponse(HttpStatus.NOT_FOUND, 'group not found'));
+      } else if (
+        e.message === GroupService.GROUP_SERVICE_EXCEPTIONS.GROUP_UNAUTHORIZED
+      ) {
+        return res
+          .status(HttpStatus.FORBIDDEN)
+          .send(
+            formatResponse(
+              HttpStatus.FORBIDDEN,
+              'group follow change forbidden',
+            ),
+          );
       } else if (e.message.includes('Duplicate entry')) {
         return res
           .status(HttpStatus.CONFLICT)
