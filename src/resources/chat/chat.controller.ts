@@ -134,25 +134,19 @@ export class ChatController {
 
   /**
    * Send express ticket to user
-   * @param uid
+   * @param toRef
    * @param req
    * @param res
    */
-  @Post('ticket/:uid')
+  @Post('ticket/:ref')
   async sendExpressTicket(
-    @Param('uid') uid: string,
+    @Param('ref') toRef: string,
     @Req() req: any,
     @Res() res: any,
   ) {
-    if (isNaN(Number(uid))) {
-      return res
-        .status(HttpStatus.FORBIDDEN)
-        .send(formatResponse(HttpStatus.FORBIDDEN, 'invalid request'));
-    }
     const sender = req['user'].id;
-    const recipient = Number(uid);
     try {
-      await this.chatService.sendUserExpressTicket(sender, recipient);
+      await this.chatService.sendUserExpressTicket(sender, toRef);
       return res
         .status(HttpStatus.OK)
         .send(formatResponse(HttpStatus.OK, 'ticket sent'));
@@ -166,9 +160,9 @@ export class ChatController {
     }
   }
 
-  @Post('deny/:uid')
+  @Post('deny/:ref')
   async denyChat(
-    @Param('uid') uid: string,
+    @Param('ref') ref: string,
     @Body()
     body: {
       status: boolean;
@@ -176,13 +170,7 @@ export class ChatController {
     @Req() req: any,
     @Res() res: any,
   ) {
-    if (isNaN(Number(uid))) {
-      return res
-        .status(HttpStatus.FORBIDDEN)
-        .send(formatResponse(HttpStatus.FORBIDDEN, 'invalid request'));
-    }
     const requester = req['user'].id;
-    const blocker = Number(uid);
     if (
       validateBody(
         {
@@ -194,8 +182,9 @@ export class ChatController {
         body,
       )
     ) {
+      const { status } = body;
       try {
-        await this.chatService.denyUserChat(requester, blocker);
+        await this.chatService.denyUserChat(requester, ref, status);
         return res
           .status(HttpStatus.OK)
           .send(formatResponse(HttpStatus.OK, 'chat denied'));

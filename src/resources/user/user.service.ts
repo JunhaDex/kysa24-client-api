@@ -187,10 +187,10 @@ export class UserService {
   }
 
   async listMyNotifications(
-    userRef: string,
+    id: number,
     options?: { page: PageQuery },
   ): Promise<Paginate<Notification>> {
-    const user = await this.userRepo.findOneBy({ ref: userRef });
+    const user = await this.userRepo.findOneBy({ id });
     if (user) {
       // setup page query
       const size = options?.page ? options.page.pageSize : DEFAULT_PAGE_SIZE;
@@ -222,14 +222,14 @@ export class UserService {
   }
 
   async deleteMyNotificationBatch(
-    userRef: string,
-    data: number[],
+    id: number,
+    notiIds: number[],
   ): Promise<void> {
-    const user = await this.userRepo.findOneBy({ ref: userRef });
+    const user = await this.userRepo.findOneBy({ id });
     if (user) {
       const myNoti = await this.notiRepo.find({
         select: ['id'],
-        where: { target: user.id, id: In(data) },
+        where: { target: user.id, id: In(notiIds) },
       });
       await this.notiRepo.delete(myNoti.map((n) => n.id));
       return;

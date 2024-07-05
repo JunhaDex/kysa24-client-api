@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from '@/resources/noti/noti.entity';
-import { User, UserDevice } from '@/resources/user/user.entity';
+import { UserDevice } from '@/resources/user/user.entity';
 import {
   GroupMessageData,
   MessageData,

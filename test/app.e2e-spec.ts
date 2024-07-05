@@ -20,7 +20,7 @@ const testUser2 = {
 const varbose = true;
 
 // eslint-disable-next-line
-var g_Ref = '36647485-e714-40e4-8e94-fd7e43721da9';
+var g_Ref = '';
 
 describe('Server Readiness', () => {
   it('Health Check', async () => {
@@ -76,12 +76,17 @@ describe('User on-boarding', () => {
       .get('/api/v1/auth/my')
       .set('Content-Type', 'application/json')
       .set('Authorization', `Bearer ${testUser1.auth}`);
+    const res2 = await request(baseUrl)
+      .get('/api/v1/auth/my')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    testUser1.myInfo = res.body.result;
+    testUser2.myInfo = res2.body.result;
     // console log here
     if (varbose) {
       console.log('Result: ', JSON.stringify(res.body, null, '\t'));
     }
     // testing here
-    testUser1.myInfo = res.body.result;
     expect(res.statusCode).toEqual(200);
   });
   it('View all users', async () => {
@@ -451,9 +456,132 @@ describe('Create a new post and comment', () => {
     expect(sRes.statusCode).toEqual(404);
   });
 });
-//
-// describe('Send a express ticket', () => {
-//   it('Send a express ticket', () => {});
-//   it('Check notification', () => {});
-//   it('View chatroom with testUser2', () => {});
-// });
+describe('Send a express ticket', () => {
+  let ticketCount;
+  let roomId;
+  it('Check ticket count', async () => {
+    const res = await request(baseUrl)
+      .get('/api/v1/chat/ticket/count')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    ticketCount = res.body.result.count;
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.result.count).toBeLessThanOrEqual(10);
+  });
+  it('Send a express ticket', async () => {
+    const recipient = testUser2.myInfo.ref;
+    const res = await request(baseUrl)
+      .post('/api/v1/chat/ticket/' + recipient)
+      .send({})
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    const chatListRes = await request(baseUrl)
+      .get('/api/v1/chat/recent')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    roomId = chatListRes.body.result.list.pop().ref;
+    const unreadRes = await request(baseUrl)
+      .get('/api/v1/chat/unread')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    const markRes = await request(baseUrl)
+      .put('/api/v1/chat/read/' + roomId)
+      .send({})
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(chatListRes.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(unreadRes.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(markRes.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(chatListRes.statusCode).toEqual(200);
+    expect(unreadRes.statusCode).toEqual(200);
+    expect(unreadRes.body.result.count).toEqual(1);
+    expect(markRes.statusCode).toEqual(200);
+  });
+  it('Check ticket count after', async () => {
+    const res = await request(baseUrl)
+      .get('/api/v1/chat/ticket/count')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.result.count).toEqual(ticketCount - 1);
+  });
+  it('View chatroom with testUser2', async () => {
+    const res = await request(baseUrl)
+      .get('/api/v1/chat/history/' + roomId)
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.result.meta).not.toEqual(undefined);
+  });
+  it('Check notification', async () => {
+    const res = await request(baseUrl)
+      .get('/api/v1/user/my/noti')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    const delRes = await request(baseUrl)
+      .delete('/api/v1/user/my/noti/delete-batch')
+      .send({ ids: [res.body.result.list[0].id] })
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(delRes.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(delRes.statusCode).toEqual(200);
+  });
+  it('Deny chat', async () => {
+    const sender = testUser1.myInfo.ref;
+    const res = await request(baseUrl)
+      .post('/api/v1/chat/deny/' + sender)
+      .send({
+        status: true,
+      })
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    const unreadRes = await request(baseUrl)
+      .get('/api/v1/chat/unread')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    // rollback
+    await request(baseUrl)
+      .post('/api/v1/chat/deny/' + sender)
+      .send({
+        status: false,
+      })
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(unreadRes.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(unreadRes.statusCode).toEqual(200);
+    expect(unreadRes.body.result.count).toEqual(0);
+  });
+});

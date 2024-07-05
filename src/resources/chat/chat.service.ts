@@ -6,7 +6,7 @@ import {
   ChatRoomView,
   ExpressTicket,
 } from '@/resources/chat/chat.entity';
-import { DataSource, In, LessThanOrEqual, Raw, Repository } from 'typeorm';
+import { And, DataSource, In, LessThanOrEqual, Raw, Repository } from 'typeorm';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { PageQuery, Paginate } from '@/types/index.type';
 import {
@@ -242,8 +242,8 @@ export class ChatService {
     return EMPTY_PAGE as Paginate<Chat>;
   }
 
-  async markAsRead(user: number, room: string): Promise<void> {
-    const roomRead = await this.roomRepo.findOne({ where: { ref: room } });
+  async markAsRead(user: number, roomRef: string): Promise<void> {
+    const roomRead = await this.roomRepo.findOneBy({ ref: roomRef });
     if (roomRead) {
       const roomView = await this.roomViewRepo.findOne({
         where: { roomId: roomRead.id, userId: user },
@@ -269,26 +269,29 @@ export class ChatService {
     const count = await this.ticketRepo.count({
       where: {
         userId: user,
-        createdAt: Raw(
-          `created_at > '${yesterday}' AND created_at <= '${today}'`,
-        ),
+        createdAt: Raw((q: any) => `${q} > :yesterday AND ${q} <= :today`, {
+          yesterday,
+          today,
+        }),
       },
     });
     return dayMax - count > 0 ? dayMax - count : 0;
   }
 
-  async sendUserExpressTicket(user: number, recipient: number): Promise<void> {
-    const room = await this.getOrGenRoom(user, recipient);
-    if (room) {
+  async sendUserExpressTicket(user: number, toRef: string): Promise<void> {
+    const recipient = await this.userRepo.findOneBy({ ref: toRef });
+    const room = await this.getOrGenRoom(user, recipient.id);
+    const count = await this.countTicketRemainToday(user);
+    if (room && count > 0) {
       const users = await this.userRepo.find({
-        select: ['ref', 'nickname', 'profileImg'],
+        select: ['id', 'ref', 'nickname', 'profileImg'],
         where: {
-          id: In([user, recipient]),
+          id: In([user, recipient.id]),
         },
       });
       const ticket = this.ticketRepo.create();
       ticket.userId = user;
-      ticket.recipient = recipient;
+      ticket.recipient = recipient.id;
       const chatMsg = this.chatRepo.create();
       chatMsg.roomId = room.id;
       chatMsg.sender = user;
@@ -307,7 +310,7 @@ export class ChatService {
       } finally {
         await queryRunner.release();
       }
-      await this.notiService.sendNotification(recipient, 'ticket', {
+      await this.notiService.sendNotification(recipient.id, 'ticket', {
         roomRef: room.ref,
         fromRef: users.filter((u) => u.id === user)[0].ref,
       } as TicketMessageData);
@@ -318,10 +321,11 @@ export class ChatService {
 
   async denyUserChat(
     user: number,
-    blocker: number,
+    blockerRef: string,
     isBlock = true,
   ): Promise<void> {
-    const room = await this.getOrGenRoom(user, blocker);
+    const blocker = await this.userRepo.findOneBy({ ref: blockerRef });
+    const room = await this.getOrGenRoom(user, blocker.id);
     if (room) {
       const blockView = await this.roomViewRepo.findOne({
         where: { roomId: room.id, userId: user },

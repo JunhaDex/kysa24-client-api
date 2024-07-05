@@ -149,7 +149,7 @@ export class UserController {
     @Req() req: any,
     @Res() res: any,
   ) {
-    const userRef = req['sub'];
+    const userId = req['user'].id;
     let page: PageQuery;
     if (query.page || query.size) {
       page = {
@@ -158,7 +158,7 @@ export class UserController {
       };
     }
     try {
-      const list = await this.userService.listMyNotifications(userRef, {
+      const list = await this.userService.listMyNotifications(userId, {
         page,
       });
       return res.code(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
@@ -178,10 +178,13 @@ export class UserController {
     @Req() req: any,
     @Res() res: any,
   ) {
-    const userRef = req['sub'];
+    const userRef = req['user'].ref;
     if (validateBody({ ids: { type: 'array', required: true } }, body)) {
       try {
         await this.userService.deleteMyNotificationBatch(userRef, body.ids);
+        return res
+          .code(HttpStatus.OK)
+          .send(formatResponse(HttpStatus.OK, 'ok'));
       } catch (e) {
         return fallbackCatch(e, res);
       }
