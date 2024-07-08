@@ -52,18 +52,13 @@ export class ChatController {
 
   /**
    * count new chats
-   * @param query
    * @param req
    * fastify request object
    * @param res
    * fastify response object
    */
   @Get('unread')
-  async countUnreadChats(
-    @Query() query: any,
-    @Req() req: any,
-    @Res() res: any,
-  ) {
+  async countUnreadChats(@Req() req: any, @Res() res: any) {
     const user = req['user'].id;
     const count = await this.chatService.getTotalUnreadCount(user);
     return res
