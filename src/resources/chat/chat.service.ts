@@ -6,7 +6,7 @@ import {
   ChatRoomView,
   ExpressTicket,
 } from '@/resources/chat/chat.entity';
-import { And, DataSource, In, LessThanOrEqual, Raw, Repository } from 'typeorm';
+import { DataSource, In, LessThanOrEqual, Raw, Repository } from 'typeorm';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { PageQuery, Paginate } from '@/types/index.type';
 import {
@@ -20,9 +20,8 @@ import { ChatRoom } from '@/resources/chat/chat_room.entity';
 import { flattenObject } from '@/utils/index.util';
 import dayjs from 'dayjs';
 import { NotiService } from '@/resources/noti/noti.service';
-import { messaging } from 'firebase-admin';
-import NotificationMessagePayload = messaging.NotificationMessagePayload;
 import { TicketMessageData } from '@/resources/noti/noti.type';
+import { UserService } from '@/resources/user/user.service';
 
 @Injectable()
 @UseGuards(AuthGuard)
@@ -42,6 +41,7 @@ export class ChatService {
     private readonly ticketRepo: Repository<ExpressTicket>,
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectDataSource() private readonly dataSource: DataSource,
+    private readonly userSerivce: UserService,
     private readonly notiService: NotiService,
   ) {}
 
@@ -198,6 +198,16 @@ export class ChatService {
     throw new Error(this.Exceptions.INVALID_USER);
   }
 
+  async checkAccessRoom(sender: number, ref: string) {
+    const rv = await this.roomViewRepo.findOne({
+      where: { userId: sender, room: { ref } },
+      relations: ['room'],
+    });
+    if (!rv) {
+      throw new Error(this.Exceptions.ROOM_NOT_FOUND);
+    }
+  }
+
   async getTotalUnreadCount(user: number): Promise<number> {
     const countByRoom = await this.roomViewRepo
       .createQueryBuilder('view')
@@ -240,6 +250,14 @@ export class ChatService {
       };
     }
     return EMPTY_PAGE as Paginate<Chat>;
+  }
+
+  async listChatUsers(roomRef: string): Promise<User[]> {
+    const room = await this.roomRepo.findOne({ where: { ref: roomRef } });
+    if (room) {
+      return await this.userSerivce.getUserInfoById(room.members);
+    }
+    throw new Error(this.Exceptions.ROOM_NOT_FOUND);
   }
 
   async markAsRead(user: number, roomRef: string): Promise<void> {

@@ -69,24 +69,34 @@ export class ChatController {
   /**
    * get chat history
    * @param ref
+   * chat room ref
    * @param query
    * - page: number
    * - size: number
    * - begin-id: number // chat id max (get older chats)
+   * @param req
+   * fastify request object
    * @param res
+   * fastify response object
    */
   @Get('history/:ref')
   async getChatHistory(
     @Param('ref') ref: string,
     @Query() query: any,
+    @Req() req: any,
     @Res() res: any,
   ) {
+    const user = req['user'];
     const page: PageQuery = {
       pageNo: query.page ?? 1,
       pageSize: query.size ?? DEFAULT_PAGE_SIZE,
     };
     const anchor = query['begin-id'];
-    console.log(anchor);
+    try {
+      await this.chatService.checkAccessRoom(user.id, ref);
+    } catch (e) {
+      throw new Error(ChatService.CHAT_SERVICE_EXCEPTIONS.ROOM_NOT_FOUND);
+    }
     const history = await this.chatService.listChatHistory(ref, {
       page,
       anchor: anchor ? Number(anchor) : undefined,
@@ -94,6 +104,35 @@ export class ChatController {
     return res
       .status(HttpStatus.OK)
       .send(formatResponse(HttpStatus.OK, history));
+  }
+
+  /**
+   * get chat users
+   * @param ref
+   * @param req
+   * @param res
+   */
+  @Get('room/:ref/users')
+  async getChatUsers(
+    @Param('ref') ref: string,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    const user = req['user'];
+    try {
+      await this.chatService.checkAccessRoom(user.id, ref);
+      const users = this.chatService.listChatUsers(ref);
+      return res
+        .status(HttpStatus.OK)
+        .send(formatResponse(HttpStatus.OK, users));
+    } catch (e) {
+      if (e.message === ChatService.CHAT_SERVICE_EXCEPTIONS.ROOM_NOT_FOUND) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .send(formatResponse(HttpStatus.NOT_FOUND, 'room not found'));
+      }
+      fallbackCatch(e, res);
+    }
   }
 
   @Put('read/:ref')

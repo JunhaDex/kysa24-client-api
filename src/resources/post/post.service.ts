@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Not, QueryRunner, Repository } from 'typeorm';
+import { DataSource, In, QueryRunner, Repository } from 'typeorm';
 import { Post, PostComment, PostLike } from '@/resources/post/post.entity';
 import { PageQuery, Paginate } from '@/types/index.type';
 import { Group, GroupUserFollow } from '@/resources/group/group.entity';
@@ -89,29 +89,33 @@ export class PostService {
           totalPage: Math.ceil(count / size),
           totalCount: count,
         },
-        list: this.cleanupListItem(list),
+        list: this.cleanupListItem(list) as Post[],
       };
     }
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
   }
 
+  private cleanupAuthor<T>(item: any): T {
+    return flattenObject(item, {
+      alias: {
+        'authorUser.ref': 'authorRef',
+        'authorUser.nickname': 'authorNickname',
+        'authorUser.profileImg': 'authorProfileImg',
+        'authorUser.coverImg': 'authorCoverImg',
+        'authorUser.introduce': 'authorIntroduce',
+        'authorUser.teamId': 'authorTeamId',
+      },
+    }) as T;
+  }
+
   private cleanupListItem(list: Post[]) {
     return list.map((item) => {
-      const flatten = flattenObject(item, {
-        alias: {
-          'authorUser.ref': 'authorRef',
-          'authorUser.nickname': 'authorNickname',
-          'authorUser.profileImg': 'authorProfileImg',
-          'authorUser.coverImg': 'authorCoverImg',
-          'authorUser.introduce': 'authorIntroduce',
-          'authorUser.teamId': 'authorTeamId',
-        },
-      }) as any;
+      const flatten = this.cleanupAuthor<Post>(item);
       return {
         ...flatten,
         likes: item.likes.filter((like) => !like.deletedAt).length,
         comments: item.comments.filter((comment) => !comment.deletedAt).length,
-      };
+      } as unknown;
     });
   }
 
@@ -169,7 +173,24 @@ export class PostService {
       const take = options?.page ? options.page.pageSize : size;
       // query post comment table
       const [list, count] = await this.commentRepo.findAndCount({
+        select: {
+          id: true,
+          author: true,
+          postId: true,
+          message: true,
+          createdAt: true,
+          deletedAt: true,
+          authorUser: {
+            ref: true,
+            nickname: true,
+            profileImg: true,
+            coverImg: true,
+            introduce: true,
+            teamId: true,
+          },
+        },
         where: { postId: id, deletedAt: null },
+        relations: ['authorUser'],
         order: { createdAt: 'DESC' },
         skip,
         take,
@@ -181,7 +202,7 @@ export class PostService {
           totalPage: Math.ceil(count / size),
           totalCount: count,
         },
-        list,
+        list: list.map((item) => this.cleanupAuthor<PostComment>(item)),
       };
     }
     throw new Error(this.Exceptions.POST_NOT_FOUND);

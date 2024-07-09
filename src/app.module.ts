@@ -21,6 +21,7 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { AuthMiddleware } from '@/middlewares/auth.middleware';
 import { NotiModule } from '@/resources/noti/noti.module';
 import { UploadMiddleware } from '@/middlewares/upload.middleware';
+import { Team } from '@/resources/user/team.entity';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { UploadMiddleware } from '@/middlewares/upload.middleware';
       namingStrategy: new SnakeNamingStrategy(),
       logging: true,
     }),
+    TypeOrmModule.forFeature([Team]),
     CacheModule.register({
       ...REDIS_CONFIG,
       isGlobal: true,
@@ -62,6 +64,7 @@ export class AppModule implements NestModule {
         { path: 'post/feed/:gRef', method: RequestMethod.GET },
         { path: 'post/detail/:id', method: RequestMethod.GET },
         { path: 'post/:id/reply', method: RequestMethod.GET },
+        { path: 'team', method: RequestMethod.GET },
         { path: 'healthz', method: RequestMethod.GET },
         { path: '*', method: RequestMethod.OPTIONS },
       )

@@ -104,6 +104,15 @@ export class UserService {
     throw new Error(this.Exceptions.USER_NOT_FOUND);
   }
 
+  async getUserInfoById(userIds: number[]) {
+    const users = await this.userRepo.find({
+      where: { id: In(userIds) },
+    });
+    return users.map((user) => {
+      return this.safeUserInfo(user);
+    });
+  }
+
   async listUsers(options?: {
     page: PageQuery;
     filter: { name: string; teamName: string };

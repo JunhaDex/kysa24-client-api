@@ -20,11 +20,22 @@ const testUser2 = {
 const varbose = true;
 
 // eslint-disable-next-line
-var g_Ref = '';
+var g_Ref = 'ef51b935-f66e-452d-af7e-cc9bef31e6a1';
 
 describe('Server Readiness', () => {
   it('Health Check', async () => {
     return request(baseUrl).get('/api/v1/healthz').expect(200);
+  });
+  it('Get team list', async () => {
+    const res = await request(baseUrl)
+      .get('/api/v1/team')
+      .set('Content-Type', 'application/json');
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
   });
 });
 

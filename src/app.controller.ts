@@ -12,4 +12,10 @@ export class AppController {
       .status(HttpStatus.OK)
       .send(formatResponse(HttpStatus.OK, 'healthy!'));
   }
+
+  @Get('team')
+  async listTeams(@Res() res: any) {
+    const teams = await this.appService.listTeams();
+    return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, teams));
+  }
 }
