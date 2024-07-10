@@ -1,10 +1,10 @@
 import { Controller, Get, HttpStatus, Res } from '@nestjs/common';
-import { AppService } from './app.service';
+import { UserService } from '@/resources/user/user.service';
 import { formatResponse } from '@/utils/index.util';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService) {}
+  constructor(private readonly userService: UserService) {}
 
   @Get('healthz')
   getHello(@Res() res: any): string {
@@ -15,7 +15,7 @@ export class AppController {
 
   @Get('team')
   async listTeams(@Res() res: any) {
-    const teams = await this.appService.listTeams();
+    const teams = await this.userService.listTeams();
     return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, teams));
   }
 }

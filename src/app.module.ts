@@ -32,7 +32,6 @@ import { Team } from '@/resources/user/team.entity';
       namingStrategy: new SnakeNamingStrategy(),
       logging: true,
     }),
-    TypeOrmModule.forFeature([Team]),
     CacheModule.register({
       ...REDIS_CONFIG,
       isGlobal: true,

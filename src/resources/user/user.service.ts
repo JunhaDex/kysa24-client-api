@@ -166,6 +166,13 @@ export class UserService {
     };
   }
 
+  async listTeams(): Promise<Team[]> {
+    return await this.teamRepo.find({
+      select: ['id', 'teamName'],
+      order: { id: 'ASC' },
+    });
+  }
+
   async updateMyInfo(userRef: string, data: UserDto): Promise<void> {
     const user: any = await this.userRepo.findOneBy({ ref: userRef });
     if (user) {

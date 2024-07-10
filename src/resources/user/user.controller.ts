@@ -60,6 +60,12 @@ export class UserController {
     return res.code(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
   }
 
+  @Get('team')
+  async listTeams(@Res() res: any) {
+    const teams = await this.userService.listTeams();
+    return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, teams));
+  }
+
   /**
    * Update user info
    * @param ref
