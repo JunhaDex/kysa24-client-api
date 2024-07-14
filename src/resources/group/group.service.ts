@@ -4,7 +4,7 @@ import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Group, GroupUserFollow } from '@/resources/group/group.entity';
 import { PageQuery, Paginate } from '@/types/index.type';
 import { DEFAULT_PAGE_SIZE } from '@/constants/index.constant';
-import { DataSource, Like, Repository } from 'typeorm';
+import { DataSource, In, Like, Repository } from 'typeorm';
 import { Post } from '@/resources/post/post.entity';
 import { GroupCreateDto, GroupUpdateDto } from '@/resources/group/group.type';
 import { flattenObject } from '@/utils/index.util';
@@ -30,8 +30,9 @@ export class GroupService {
   ) {}
 
   async listGroups(options?: {
-    page: PageQuery;
-    filter: { groupName: string };
+    page?: PageQuery;
+    filter?: { groupName: string };
+    sender?: number;
   }): Promise<Paginate<Group>> {
     // setup page queries
     const size = options?.page ? options.page.pageSize : DEFAULT_PAGE_SIZE;
@@ -107,6 +108,14 @@ export class GroupService {
       )
       .where('group.id IN (:...ids)', { ids: groups.map((group) => group.id) })
       .getRawMany();
+    // personalization
+    let following = undefined;
+    if (options?.sender) {
+      following = await this.getFollowingGroups(
+        options.sender,
+        groups.map((group) => group.id),
+      );
+    }
     // return paginated result
     return {
       meta: {
@@ -115,11 +124,15 @@ export class GroupService {
         totalPage: Math.ceil(count / size),
         totalCount: count,
       },
-      list: this.addGroupPosts(groups, posts),
+      list: this.addGroupPosts(groups, posts, { following }),
     };
   }
 
-  private addGroupPosts(groups: Group[], posts: any): Group[] {
+  private addGroupPosts(
+    groups: Group[],
+    posts: any,
+    options?: { following: number[] },
+  ): Group[] {
     const flattened = groups.map((group) => {
       const flatten = flattenObject(group, {
         alias: {
@@ -148,11 +161,17 @@ export class GroupService {
             },
           }) as any;
         });
+      if (options?.following) {
+        group.already = options.following.includes(group.id);
+      }
       return group;
     });
   }
 
-  async getGroupByRef(groupRef: string): Promise<Group> {
+  async getGroupByRef(
+    groupRef: string,
+    options?: { sender?: number },
+  ): Promise<Group> {
     const group = await this.groupRepo.findOne({
       select: {
         id: true,
@@ -185,12 +204,25 @@ export class GroupService {
           'creatorUser.nickname': 'creatorNickname',
         },
       }) as any;
+      if (options?.sender) {
+        const follows = await this.getFollowingGroups(options.sender, [
+          group.id,
+        ]);
+        clean.already = follows.includes(group.id);
+      }
       return {
         ...clean,
         followers: group.followers.length,
       } as Group;
     }
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
+  }
+
+  private async getFollowingGroups(userId: number, groupIds: number[]) {
+    const follows = await this.followRepo.find({
+      where: { follower: userId, groupId: In(groupIds) },
+    });
+    return follows.map((follow) => follow.groupId);
   }
 
   async createGroup(group: GroupCreateDto): Promise<void> {

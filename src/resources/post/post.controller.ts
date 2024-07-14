@@ -30,6 +30,7 @@ import {
   PostUpdateDTOKeys,
 } from '@/resources/post/post.type';
 import { AuthGuard } from '@/guards/auth.guard';
+import { AuthOptGuard } from '@/guards/option.guard';
 
 @Controller('post')
 export class PostController {
@@ -44,12 +45,15 @@ export class PostController {
    * @param query
    * - page: page number
    * - size: page size
+   * @param req
    * @param res
    */
   @Get('feed/:gRef')
+  @UseGuards(AuthOptGuard)
   async listPost(
     @Param('gRef') groupRef: string,
     @Query() query: any,
+    @Req() req: any,
     @Res() res: any,
   ) {
     let page: PageQuery;
@@ -60,7 +64,10 @@ export class PostController {
       };
     }
     try {
-      const list = await this.postService.listPosts(groupRef, { page });
+      const list = await this.postService.listPosts(groupRef, {
+        page,
+        sender: req['user']?.id,
+      });
       return res
         .status(HttpStatus.OK)
         .send(formatResponse(HttpStatus.OK, list));
@@ -80,18 +87,22 @@ export class PostController {
    * Get post detail by id
    * @param id
    * post id number
+   * @param req
    * @param res
    * fastify response
    */
   @Get('detail/:id')
-  async getPostById(@Param('id') id: string, @Res() res: any) {
+  @UseGuards(AuthOptGuard)
+  async getPostById(@Param('id') id: string, @Req() req: any, @Res() res: any) {
     if (isNaN(Number(id))) {
       return res
         .status(HttpStatus.BAD_REQUEST)
         .send(formatResponse(HttpStatus.BAD_REQUEST, 'invalid post id'));
     }
     try {
-      const post = await this.postService.getPostById(+id);
+      const post = await this.postService.getPostById(+id, {
+        sender: req['user']?.id,
+      });
       return res
         .status(HttpStatus.OK)
         .send(formatResponse(HttpStatus.OK, post));

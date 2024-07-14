@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  InternalServerErrorException,
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -20,7 +21,6 @@ export class AuthGuard implements CanActivate {
     const token = (req.headers['authorization']?.split(' ') ?? [])[1];
     try {
       const user = await this.jwtService.verifyAsync(token);
-      console.log('Guard!');
       if (user) {
         const ref = user.sub;
         const current = await this.userService.getUserInfo(ref);
@@ -31,6 +31,7 @@ export class AuthGuard implements CanActivate {
       }
     } catch (e) {
       Logger.error(e.message);
+      throw new InternalServerErrorException();
     }
     throw new UnauthorizedException();
   }

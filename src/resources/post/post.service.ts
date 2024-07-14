@@ -39,8 +39,9 @@ export class PostService {
 
   async listPosts(
     groupRef: string,
-    options?: { page: PageQuery },
+    options?: { page?: PageQuery; sender?: number },
   ): Promise<Paginate<Post>> {
+    // find group by ref
     const group = await this.groupRepo.findOne({ where: { ref: groupRef } });
     if (group) {
       // setup page queries
@@ -82,6 +83,15 @@ export class PostService {
         take,
         relations: ['authorUser', 'likes', 'comments'],
       });
+      // personalization
+      let liked = undefined;
+      if (options?.sender) {
+        liked = await this.getLikePosts(
+          options.sender,
+          list.map((l) => l.id),
+        );
+      }
+      // return paginated result
       return {
         meta: {
           pageNo: options?.page?.pageNo ?? 1,
@@ -89,7 +99,7 @@ export class PostService {
           totalPage: Math.ceil(count / size),
           totalCount: count,
         },
-        list: this.cleanupListItem(list) as Post[],
+        list: this.cleanupListItem(list, { iLikes: liked }) as Post[],
       };
     }
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
@@ -108,19 +118,33 @@ export class PostService {
     }) as T;
   }
 
-  private cleanupListItem(list: Post[]) {
+  private cleanupListItem(list: Post[], options?: { iLikes: number[] }) {
     return list.map((item) => {
       const flatten = this.cleanupAuthor<Post>(item);
-      return {
+      const cleaned = {
         ...flatten,
         likes: item.likes.filter((like) => !like.deletedAt).length,
         comments: item.comments.filter((comment) => !comment.deletedAt).length,
-      } as unknown;
+      } as any;
+      if (options?.iLikes) {
+        cleaned.liked = options.iLikes.includes(item.id);
+      }
+      return cleaned;
     });
+  }
+
+  private async getLikePosts(userId: number, postIds: number[]) {
+    const likes = await this.likeRepo.find({
+      where: { author: userId, postId: In(postIds) },
+    });
+    return likes.map((like) => like.postId);
   }
 
   async getPostById(
     id: number,
+    options?: {
+      sender?: number;
+    },
   ): Promise<{ post: Post; comments: Paginate<PostComment> }> {
     const post = await this.postRepo.findOne({
       select: {
@@ -150,7 +174,14 @@ export class PostService {
       relations: ['authorUser', 'likes', 'comments'],
     });
     if (post) {
-      const clean = this.cleanupListItem([post]).pop() as Post;
+      //personalization
+      let liked = undefined;
+      if (options?.sender) {
+        liked = await this.getLikePosts(options.sender, [id]);
+      }
+      const clean = this.cleanupListItem([post], {
+        iLikes: liked,
+      }).pop() as Post;
       const comments = await this.listPostComments(id, {
         page: { pageNo: 1, pageSize: DEFAULT_PAGE_SIZE },
       });

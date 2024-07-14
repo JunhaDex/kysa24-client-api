@@ -28,6 +28,7 @@ import {
   GroupUpdateDtoKeys,
 } from '@/resources/group/group.type';
 import { DEFAULT_PAGE_SIZE } from '@/constants/index.constant';
+import { AuthOptGuard } from '@/guards/option.guard';
 
 @Controller('group')
 export class GroupController {
@@ -41,11 +42,14 @@ export class GroupController {
    * - page: page number
    * - size: page size
    * - name: group name search (FTS)
+   * @param req
+   * fastify request
    * @param res
    * fastify response
    */
   @Get()
-  async listGroups(@Query() query: any, @Res() res: any) {
+  @UseGuards(AuthOptGuard)
+  async listGroups(@Query() query: any, @Req() req: any, @Res() res: any) {
     let page: PageQuery;
     if (query.page || query.size) {
       page = {
@@ -56,14 +60,33 @@ export class GroupController {
     const list = await this.groupService.listGroups({
       page,
       filter: { groupName: query.name },
+      sender: req['user']?.id,
     });
     return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
   }
 
+  /**
+   * [**Public**]
+   *
+   * Get single group by reference
+   * @param gRef
+   * group reference uuidv4
+   * @param req
+   * fastify request
+   * @param res
+   * fastify response
+   */
   @Get(':gRef')
-  async getGroupById(@Param('gRef') gRef: string, @Res() res: any) {
+  @UseGuards(AuthOptGuard)
+  async getGroupById(
+    @Param('gRef') gRef: string,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
     try {
-      const group = await this.groupService.getGroupByRef(gRef);
+      const group = await this.groupService.getGroupByRef(gRef, {
+        sender: req['user']?.id,
+      });
       return res
         .status(HttpStatus.OK)
         .send(formatResponse(HttpStatus.OK, group));

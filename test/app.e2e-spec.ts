@@ -147,6 +147,39 @@ describe('User on-boarding', () => {
   });
 });
 
+describe('Personalized Data', () => {
+  let recentGroup: any;
+  it('Landing with auth', async () => {
+    const res = await request(baseUrl)
+      .get('/api/v1/group')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    recentGroup = res.body.result.list[0];
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(
+      res.body.result.list.every((item: any) => item.already !== undefined),
+    ).toEqual(true);
+  });
+  it('Group with auth', async () => {
+    const res = await request(baseUrl)
+      .get('/api/v1/group/' + recentGroup.ref)
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.result.already).not.toEqual(undefined);
+  });
+});
+
 describe('Update user info', () => {
   it('update user info with profile upload', async () => {
     const uploadRes = await request(baseUrl)
@@ -339,7 +372,8 @@ describe('Create a new post and comment', () => {
       .set('Authorization', `Bearer ${testUser1.auth}`);
     const listRes = await request(baseUrl)
       .get('/api/v1/post/feed/' + g_Ref)
-      .set('Content-Type', 'application/json');
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
     latestPost = listRes.body.result.list[0];
     // console log here
     if (varbose) {
@@ -350,6 +384,10 @@ describe('Create a new post and comment', () => {
     expect(postRes.statusCode).toEqual(201);
     expect(listRes.statusCode).toEqual(200);
     expect(listRes.body.result.list.length).toBeGreaterThanOrEqual(1);
+    // personalized
+    expect(
+      listRes.body.result.list.every((item: any) => item.already !== undefined),
+    ).toEqual(true);
   });
   it('Comment on the post', async () => {
     const cRes = await request(baseUrl)
@@ -427,7 +465,8 @@ describe('Create a new post and comment', () => {
       .set('Authorization', `Bearer ${testUser2.auth}`);
     const rRes = await request(baseUrl)
       .get(`/api/v1/post/detail/${latestPost.id}`)
-      .set('Content-Type', 'application/json');
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
     const afterCount = rRes.body.result.post.comments;
     // console log here
     if (varbose) {
@@ -442,6 +481,8 @@ describe('Create a new post and comment', () => {
     expect(fRes.statusCode).toEqual(403);
     expect(res.statusCode).toEqual(200);
     expect(cListRes.body.result.meta.totalCount).toEqual(afterCount + 1);
+    // personalized
+    expect(rRes.body.result.post.liked).not.toEqual(undefined);
   });
   it('Delete the post', async () => {
     const fRes = await request(baseUrl)
