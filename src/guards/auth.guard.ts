@@ -31,6 +31,9 @@ export class AuthGuard implements CanActivate {
       }
     } catch (e) {
       Logger.error(e.message);
+      if (e.message.includes('jwt expired')) {
+        throw new UnauthorizedException();
+      }
       throw new InternalServerErrorException();
     }
     throw new UnauthorizedException();

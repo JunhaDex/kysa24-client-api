@@ -4,6 +4,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { Observable } from 'rxjs';
 import { JwtService } from '@nestjs/jwt';
@@ -33,6 +34,9 @@ export class AuthOptGuard implements CanActivate {
         }
       } catch (e) {
         Logger.error(e.message);
+        if (e.message.includes('jwt expired')) {
+          throw new UnauthorizedException();
+        }
         throw new InternalServerErrorException();
       }
     }
