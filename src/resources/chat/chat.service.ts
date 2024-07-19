@@ -328,6 +328,7 @@ export class ChatService {
       } finally {
         await queryRunner.release();
       }
+      // TODO: publish to redis
       await this.notiService.sendNotification(recipient.id, 'ticket', {
         roomRef: room.ref,
         fromRef: users.filter((u) => u.id === user)[0].ref,
