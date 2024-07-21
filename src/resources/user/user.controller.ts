@@ -66,6 +66,9 @@ export class UserController {
     return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, teams));
   }
 
+  @Get(':ref')
+  async getUser(@Param('ref') ref: string, @Res() res: any) {}
+
   /**
    * Update user info
    * @param ref
