@@ -66,6 +66,18 @@ export class UserDevice {
   updatedAt: Date;
 }
 
+@Entity({ name: 'user_info' })
+export class UserExtra {
+  @PrimaryGeneratedColumn()
+  id: number;
+  @Column({ name: 'user_id' })
+  userId: number;
+  @Column({ type: 'simple-json', name: 'extra_info' })
+  extraInfo: any;
+  @Column({ nullable: true })
+  createdAt: Date;
+}
+
 @Entity({ name: 'status_user_act' })
 export class StatusUserAct {
   @PrimaryGeneratedColumn()

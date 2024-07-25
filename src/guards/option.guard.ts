@@ -25,7 +25,7 @@ export class AuthOptGuard implements CanActivate {
         const user = await this.jwtService.verifyAsync(token);
         if (user) {
           const ref = user.sub;
-          const current = await this.userService.getUserInfo(ref);
+          const current = await this.userService.getMyInfo(ref);
           if (current) {
             req['user'] = current.myInfo;
             return true;

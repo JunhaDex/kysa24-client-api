@@ -20,7 +20,7 @@ const testUser2 = {
 const varbose = true;
 
 // eslint-disable-next-line
-var g_Ref = 'ef51b935-f66e-452d-af7e-cc9bef31e6a1';
+var g_Ref = '8f01e814-21ff-4705-b6f5-6c2db72f8c2d';
 
 describe('Server Readiness', () => {
   it('Health Check', async () => {
@@ -105,8 +105,6 @@ describe('User on-boarding', () => {
     const res = await request(baseUrl)
       .get('/api/v1/user/secure-list')
       .set('Content-Type', 'application/json');
-    // should fail with 403
-    expect(res.statusCode).toEqual(403);
     // call /api/v1/user/secure-list with auth
     const res2 = await request(baseUrl)
       .get('/api/v1/user/secure-list')
@@ -117,7 +115,33 @@ describe('User on-boarding', () => {
       console.log('Result: ', JSON.stringify(res2.body, null, '\t'));
     }
     // testing here
+    expect(res.statusCode).toEqual(403);
     expect(res2.statusCode).toEqual(200);
+  });
+  it('View user details', async () => {
+    // call without auth should fail with 403
+    const res = await request(baseUrl)
+      .get('/api/v1/user/' + testUser2.myInfo.ref)
+      .set('Content-Type', 'application/json');
+    const resAuth = await request(baseUrl)
+      .get('/api/v1/user/' + testUser2.myInfo.ref)
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(resAuth.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(403);
+    expect(resAuth.statusCode).toEqual(200);
+    expect(
+      ['user', 'extra']
+        .map((k) => {
+          return Object.keys(resAuth.body.result).includes(k);
+        })
+        .every((v) => v),
+    ).toEqual(true);
   });
   it('View recent chats', async () => {
     const res = await request(baseUrl)
@@ -205,6 +229,30 @@ describe('Update user info', () => {
     expect(uploadRes.statusCode).toEqual(200);
     expect(uploadRes.body.result.location).toMatch(/^(http|https):\/\/[^ "]+$/);
     expect(patchRes.statusCode).toEqual(200);
+  });
+  it('update user extra info', async () => {
+    const patchRes = await request(baseUrl)
+      .patch('/api/v1/user/my/extra/' + testUser1.myInfo.ref)
+      .send({
+        movie: 'Interstellar',
+      })
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    const patchResFail = await request(baseUrl)
+      .patch('/api/v1/user/my/extra/' + testUser1.myInfo.ref)
+      .send({
+        movie: 'Interstellar',
+      })
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser2.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(patchRes.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(patchResFail.body, null, '\t'));
+    }
+    // testing here
+    expect(patchRes.statusCode).toEqual(200);
+    expect(patchResFail.statusCode).toEqual(403);
   });
 });
 
@@ -482,7 +530,7 @@ describe('Create a new post and comment', () => {
     expect(res.statusCode).toEqual(200);
     expect(cListRes.body.result.meta.totalCount).toEqual(afterCount + 1);
     // personalized
-    expect(rRes.body.result.post.liked).not.toEqual(undefined);
+    expect(rRes.body.result.post.already).not.toEqual(undefined);
   });
   it('Delete the post', async () => {
     const fRes = await request(baseUrl)

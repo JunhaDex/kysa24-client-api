@@ -127,12 +127,18 @@ export class PostService {
         comments: item.comments.filter((comment) => !comment.deletedAt).length,
       } as any;
       if (options?.iLikes) {
-        cleaned.liked = options.iLikes.includes(item.id);
+        cleaned.already = options.iLikes.includes(item.id);
       }
       return cleaned;
     });
   }
 
+  /**
+   * returns post ids intersected with user's like posts
+   * @param userId
+   * @param postIds
+   * @private
+   */
   private async getLikePosts(userId: number, postIds: number[]) {
     const likes = await this.likeRepo.find({
       where: { author: userId, postId: In(postIds) },
@@ -179,12 +185,15 @@ export class PostService {
       if (options?.sender) {
         liked = await this.getLikePosts(options.sender, [id]);
       }
+      // query post like table
       const clean = this.cleanupListItem([post], {
         iLikes: liked,
       }).pop() as Post;
+      // query post comment table
       const comments = await this.listPostComments(id, {
         page: { pageNo: 1, pageSize: DEFAULT_PAGE_SIZE },
       });
+      // return post instance and first page of comments
       return { post: clean, comments };
     }
     throw new Error(this.Exceptions.POST_NOT_FOUND);

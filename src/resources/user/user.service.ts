@@ -4,7 +4,7 @@ import { LoginDto, UserDto, UserPasswordDto } from '@/resources/user/user.type';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, LessThanOrEqual, Like, Repository } from 'typeorm';
-import { User, UserDevice } from '@/resources/user/user.entity';
+import { User, UserDevice, UserExtra } from '@/resources/user/user.entity';
 import { Notification } from '@/resources/noti/noti.entity';
 import { Team } from '@/resources/user/team.entity';
 import { flattenObject } from '@/utils/index.util';
@@ -30,6 +30,8 @@ export class UserService {
     @InjectRepository(Team) private readonly teamRepo: Repository<Team>,
     @InjectRepository(UserDevice)
     private readonly deviceRepo: Repository<UserDevice>,
+    @InjectRepository(UserExtra)
+    private readonly extraRepo: Repository<UserExtra>,
     @InjectRepository(Notification)
     private readonly notiRepo: Repository<Notification>,
   ) {}
@@ -95,11 +97,21 @@ export class UserService {
     return false;
   }
 
-  async getUserInfo(userRef: string) {
+  async getMyInfo(userRef: string) {
     const user: any = await this.userRepo.findOneBy({ ref: userRef });
     if (user) {
       const my = this.safeUserInfo(user);
       return { myInfo: my };
+    }
+    throw new Error(this.Exceptions.USER_NOT_FOUND);
+  }
+
+  async getUserWithExtra(userRef: string): Promise<{ user: User; extra: any }> {
+    const user: any = await this.userRepo.findOneBy({ ref: userRef });
+    if (user) {
+      const cleanUser = this.safeUserInfo(user);
+      const extra = await this.extraRepo.findOneBy({ userId: user.id });
+      return { user: cleanUser, extra: extra.extraInfo };
     }
     throw new Error(this.Exceptions.USER_NOT_FOUND);
   }
@@ -114,42 +126,39 @@ export class UserService {
   }
 
   async listUsers(options?: {
-    page: PageQuery;
-    filter: { name: string; teamName: string };
+    page?: PageQuery;
+    filter?: { name?: string; teamName?: string };
   }): Promise<Paginate<User>> {
-    // setup page query
-    const size = options?.page ? options.page.pageSize : DEFAULT_PAGE_SIZE;
-    const skip = options?.page
-      ? (options.page.pageNo - 1) * options.page.pageSize
-      : 0;
-    const take = options?.page ? options.page.pageSize : size;
-    // setup filter query
-    let filter: any;
+    // setup page query: page -> teamId, pageSize -> ignore, pageStart -> ignore
+    const pageNo = options?.page?.pageNo ?? 1;
+    const totalUsers = await this.userRepo.count();
+    let totalTeams = await this.teamRepo.count();
+    let filter: any = {
+      teamId: pageNo,
+    };
     if (options?.filter) {
-      let teamId: number | undefined;
+      if (options.filter.name) {
+        filter = { ...filter, name: Like(`%${options.filter.name}%`) };
+      }
       if (options.filter.teamName) {
-        const team = await this.teamRepo.findOneBy({
+        const [teams, tCount] = await this.teamRepo.findAndCountBy({
           teamName: Like(`%${options.filter.teamName}%`),
         });
-        if (team) {
-          teamId = team.id;
+        if (tCount > 0) {
+          totalTeams = tCount;
+          filter = {
+            ...filter,
+            teamId: In(teams.map((team) => team.id)),
+          };
         } else {
           return EMPTY_PAGE as Paginate<User>;
         }
       }
-      filter = {
-        nickname: options.filter.name
-          ? Like(`%${options.filter.name}%`)
-          : undefined,
-        teamId,
-      };
     }
     // query user table
     const [listRaw, count] = await this.userRepo.findAndCount({
       where: filter,
       relations: ['team'],
-      skip,
-      take,
     });
     const list = listRaw.map((user) => {
       return this.safeUserInfo(user);
@@ -158,9 +167,9 @@ export class UserService {
     return {
       meta: {
         pageNo: options?.page?.pageNo || 1,
-        pageSize: size,
-        totalPage: Math.ceil(count / size),
-        totalCount: count,
+        pageSize: DEFAULT_PAGE_SIZE,
+        totalPage: totalTeams,
+        totalCount: options?.filter ? count : totalUsers,
       },
       list,
     };
@@ -184,6 +193,19 @@ export class UserService {
       return;
     }
     throw new Error(this.Exceptions.USER_NOT_FOUND);
+  }
+
+  async updateMyExtra(userRef: string, data: any): Promise<void> {
+    const user: any = await this.userRepo.findOneBy({ ref: userRef });
+    if (user) {
+      const extra = await this.extraRepo.findOneBy({ userId: user.id });
+      if (extra) {
+        extra.extraInfo = data;
+        await this.extraRepo.save(extra);
+        return;
+      }
+      throw new Error(this.Exceptions.USER_NOT_FOUND);
+    }
   }
 
   async updateMyPwd(userRef: string, data: UserPasswordDto): Promise<void> {

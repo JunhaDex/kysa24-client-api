@@ -67,7 +67,19 @@ export class UserController {
   }
 
   @Get(':ref')
-  async getUser(@Param('ref') ref: string, @Res() res: any) {}
+  async getUser(@Param('ref') ref: string, @Res() res: any) {
+    try {
+      const user = await this.userService.getUserWithExtra(ref);
+      return res.code(HttpStatus.OK).send(formatResponse(HttpStatus.OK, user));
+    } catch (e) {
+      if (e.message === UserService.USER_SERVICE_EXCEPTIONS.USER_NOT_FOUND) {
+        return res
+          .code(HttpStatus.NOT_FOUND)
+          .send(formatResponse(HttpStatus.NOT_FOUND, 'user not found'));
+      }
+      return fallbackCatch(e, res);
+    }
+  }
 
   /**
    * Update user info
@@ -100,6 +112,29 @@ export class UserController {
         } catch (e) {
           return fallbackCatch(e, res);
         }
+      }
+    }
+    return res
+      .code(HttpStatus.FORBIDDEN)
+      .send(formatResponse(HttpStatus.FORBIDDEN, 'invalid request'));
+  }
+
+  @Patch('my/extra/:ref')
+  async updateMyExtra(
+    @Param('ref') ref: string,
+    @Body() body: any,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    const userRef = req['user'].ref;
+    if (userRef === ref) {
+      try {
+        await this.userService.updateMyExtra(ref, body);
+        return res
+          .code(HttpStatus.OK)
+          .send(formatResponse(HttpStatus.OK, 'ok'));
+      } catch (e) {
+        return fallbackCatch(e, res);
       }
     }
     return res
@@ -187,14 +222,19 @@ export class UserController {
     @Req() req: any,
     @Res() res: any,
   ) {
-    const userRef = req['user'].ref;
+    const userId = req['user'].id;
     if (validateBody({ ids: { type: 'array', required: true } }, body)) {
       try {
-        await this.userService.deleteMyNotificationBatch(userRef, body.ids);
+        await this.userService.deleteMyNotificationBatch(userId, body.ids);
         return res
           .code(HttpStatus.OK)
           .send(formatResponse(HttpStatus.OK, 'ok'));
       } catch (e) {
+        if (e.message === UserService.USER_SERVICE_EXCEPTIONS.USER_NOT_FOUND) {
+          return res
+            .code(HttpStatus.NOT_FOUND)
+            .send(formatResponse(HttpStatus.NOT_FOUND, 'user not found'));
+        }
         return fallbackCatch(e, res);
       }
     }

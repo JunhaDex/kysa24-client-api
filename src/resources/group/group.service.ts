@@ -172,6 +172,7 @@ export class GroupService {
     groupRef: string,
     options?: { sender?: number },
   ): Promise<Group> {
+    // query group table
     const group = await this.groupRepo.findOne({
       select: {
         id: true,
@@ -210,6 +211,13 @@ export class GroupService {
         ]);
         clean.already = follows.includes(group.id);
       }
+      // personalization
+      let following: any;
+      if (options?.sender) {
+        following = await this.getFollowingGroups(options.sender, [group.id]);
+        clean.following = following.includes(group.id);
+      }
+      // return group instance
       return {
         ...clean,
         followers: group.followers.length,
@@ -218,6 +226,12 @@ export class GroupService {
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
   }
 
+  /**
+   * returns group ids intersected with following groups
+   * @param userId
+   * @param groupIds
+   * @private
+   */
   private async getFollowingGroups(userId: number, groupIds: number[]) {
     const follows = await this.followRepo.find({
       where: { follower: userId, groupId: In(groupIds) },
