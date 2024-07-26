@@ -459,6 +459,10 @@ describe('Create a new post and comment', () => {
       .send({})
       .set('Content-Type', 'application/json')
       .set('Authorization', `Bearer ${testUser1.auth}`);
+    const u1rRes = await request(baseUrl)
+      .get(`/api/v1/post/detail/${latestPost.id}`)
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
     const u1cRes = await request(baseUrl)
       .put(`/api/v1/post/like/${latestPost.id}?undo=true`)
       .send({})
@@ -468,11 +472,14 @@ describe('Create a new post and comment', () => {
     if (varbose) {
       console.log('Result: ', JSON.stringify(u2Res.body, null, '\t'));
       console.log('Result: ', JSON.stringify(u1Res.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(u1rRes.body, null, '\t'));
       console.log('Result: ', JSON.stringify(u1cRes.body, null, '\t'));
     }
     // testing here
     expect(u2Res.statusCode).toEqual(200);
     expect(u1Res.statusCode).toEqual(200);
+    expect(u1rRes.statusCode).toEqual(200);
+    expect(u1rRes.body.result.post.already).toEqual(true);
     expect(u1cRes.statusCode).toEqual(200);
   });
   it('View the post detail', async () => {
