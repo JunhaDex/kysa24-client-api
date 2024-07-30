@@ -250,6 +250,7 @@ export class GroupService {
       newGroup.groupName = group.groupName;
       newGroup.introduce = group.introduce;
       newGroup.coverImg = group.coverImg;
+      newGroup.profileImg = group.profileImg;
       newGroup.creator = group.creator;
       await this.groupRepo.save(newGroup);
       await this.followGroup(newGroup.ref, group.creator, { isMust: true });
