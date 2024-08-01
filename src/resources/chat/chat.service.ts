@@ -158,7 +158,6 @@ export class ChatService {
       const room = await this.roomRepo.findOne({
         where: { members: Raw(`json_array(${sorted.join(',')})`) },
       });
-      console.log('room', room);
       if (room) {
         return room;
       } else {
@@ -221,6 +220,17 @@ export class ChatService {
     return countByRoom.reduce((acc, item) => {
       return acc + Number(item.unread_count);
     }, 0);
+  }
+
+  async getChatRoomByUserDM(
+    myId: number,
+    targetRef: string,
+  ): Promise<ChatRoom> {
+    const target = await this.userRepo.findOneBy({ ref: targetRef });
+    if (target) {
+      return await this.getOrGenRoom(myId, target.id);
+    }
+    throw new Error(this.Exceptions.ROOM_NOT_FOUND);
   }
 
   async listChatHistory(

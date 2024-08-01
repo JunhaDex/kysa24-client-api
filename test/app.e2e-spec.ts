@@ -10,7 +10,7 @@ const testUser1 = {
 };
 
 const testUser2 = {
-  id: 'park.jun',
+  id: 'kim.chul',
   pwd: '000000',
   fcm: '',
   auth: '',
@@ -564,6 +564,24 @@ describe('Create a new post and comment', () => {
   });
 });
 describe('Send a express ticket', () => {
+  it('Open a new chatroom', async () => {
+    const resSelf = await request(baseUrl)
+      .get(`/api/v1/chat/user/${testUser1.myInfo.ref}`)
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    const res2 = await request(baseUrl)
+      .get(`/api/v1/chat/user/${testUser2.myInfo.ref}`)
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(resSelf.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(res2.body, null, '\t'));
+    }
+    // testing here
+    expect(resSelf.statusCode).toEqual(400);
+    expect(res2.statusCode).toEqual(200);
+  });
   let ticketCount;
   let roomId;
   it('Check ticket count', async () => {

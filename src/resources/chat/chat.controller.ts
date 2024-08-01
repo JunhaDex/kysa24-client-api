@@ -50,6 +50,34 @@ export class ChatController {
     return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
   }
 
+  @Get('user/:ref')
+  async getChatRoomByUser(
+    @Param('ref') ref: string,
+    @Req() req: any,
+    @Res() res: any,
+  ) {
+    const user = req['user'].id;
+    const myRef = req['user'].ref;
+    if (ref === myRef) {
+      return res
+        .status(HttpStatus.BAD_REQUEST)
+        .send(formatResponse(HttpStatus.BAD_REQUEST, 'invalid request'));
+    }
+    try {
+      const room = await this.chatService.getChatRoomByUserDM(user, ref);
+      return res
+        .status(HttpStatus.OK)
+        .send(formatResponse(HttpStatus.OK, room));
+    } catch (e) {
+      if (e.message === ChatService.CHAT_SERVICE_EXCEPTIONS.ROOM_NOT_FOUND) {
+        return res
+          .status(HttpStatus.NOT_FOUND)
+          .send(formatResponse(HttpStatus.NOT_FOUND, 'user not found'));
+      }
+      fallbackCatch(e, res);
+    }
+  }
+
   /**
    * count new chats
    * @param req
