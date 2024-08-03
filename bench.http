@@ -9,7 +9,7 @@ POST {{host}}/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "id": "lee.young",
+  "id": "new.minji",
   "pwd": "000000"
 }
 
@@ -145,4 +145,39 @@ Content-Type: application/json
 Authorization: Bearer {{auth2}}
 
 {}
+
+### list chat rooms
+GET {{host}}/api/v1/chat/recent
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+### list chat history
+GET {{host}}/api/v1/chat/history/16a9f327-38d1-4832-b109-dd32f85fd0ee?begin-id=2
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+### send express ticket
+POST {{host}}/api/v1/chat/ticket/10003
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{}
+
+### get total unread count
+GET {{host}}/api/v1/chat/unread
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+### mark as read
+PUT {{host}}/api/v1/chat/read/138c7fa3-76a3-45de-9e51-5b00abca09b4
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{}
+
+### get ticket count today
+GET {{host}}/api/v1/chat/ticket/count
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
 
