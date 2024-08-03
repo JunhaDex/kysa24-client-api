@@ -16,4 +16,4 @@ COPY --from=build-stage /usr/src/app/package.json .
 COPY --from=build-stage /usr/src/app/yarn.lock .
 RUN yarn install --production
 CMD node dist/main.js
-EXPOSE 3000
+EXPOSE 3001

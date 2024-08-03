@@ -2,6 +2,12 @@ steps:
   # pull secrets
   - name: 'gcr.io/cloud-builders/gsutil'
     args: [ 'cp', '-r','gs://${_MY_BUCKET}/kysa24-client-api/*', '.' ]
+  # Debug Build Environment
+  - name: 'bash'
+    script: |
+      #!/usr/bin/env bash
+      ls -al
+      cat .env
   # build
   - name: 'gcr.io/cloud-builders/docker'
     args: [ 'build', '-t', 'gcr.io/kysa24-sns/kysa24-client-api', '-f', './storage/build/Dockerfile', '.' ]
