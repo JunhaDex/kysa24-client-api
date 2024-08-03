@@ -17,7 +17,7 @@ steps:
   # deploy
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
-    args: [ 'run', 'deploy', 'kysa24-client-api', '--image', 'gcr.io/kysa24-sns/kysa24-client-api', '--region', 'asia-northeast3', '--port', '3000', '--allow-unauthenticated' ]
+    args: [ 'run', 'deploy', 'kysa24-client-api', '--image', 'gcr.io/kysa24-sns/kysa24-client-api', '--region', 'asia-northeast3', '--port', '3001', '--allow-unauthenticated' ]
 images:
   - 'gcr.io/kysa24-sns/kysa24-client-api'
 options:
