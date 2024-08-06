@@ -1,0 +1,16 @@
+{
+  "projects": {
+    "default": "kysa24-sns"
+  },
+  "targets": {
+    "kysa24-sns": {
+      "hosting": {
+        "client-api": [
+          "kysa24-client-api"
+        ]
+      }
+    }
+  },
+  "etags": {},
+  "dataconnectEmulatorConfig": {}
+}

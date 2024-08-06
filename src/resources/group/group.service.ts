@@ -41,9 +41,11 @@ export class GroupService {
       : 0;
     const take = options?.page ? options.page.pageSize : size;
     // setup filter queries
-    let filter: any;
+    let filter: any = {
+      isShow: 1,
+    };
     if (options?.filter?.groupName) {
-      filter = { groupName: Like(`%${options.filter.groupName}%`) };
+      filter = { ...filter, groupName: Like(`%${options.filter.groupName}%`) };
     }
     // query group table
     const [groups, count] = await this.groupRepo.findAndCount({

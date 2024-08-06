@@ -1,0 +1,14 @@
+{
+  "hosting": {
+    "target": "client-api",
+    "rewrites": [
+      {
+        "source": "**",
+        "run": {
+          "serviceId": "kysa24-client-api",
+          "region": "asia-northeast3"
+        }
+      }
+    ]
+  }
+}

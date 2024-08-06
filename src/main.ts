@@ -30,7 +30,7 @@ async function bootstrap() {
   await app.register(userAgent);
   await app.register(multipart);
   app.setGlobalPrefix('api/v1');
-  await app.listen(3001);
+  await app.listen(3001, '0.0.0.0');
   Logger.log(`Server running on port 3001`);
   Logger.log(`Timezone: ${process.env.TZ}`);
   Logger.log(`Server Started: ${new Date().toString()}`);
