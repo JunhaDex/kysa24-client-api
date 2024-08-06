@@ -141,7 +141,7 @@ export class PostService {
    */
   private async getLikePosts(userId: number, postIds: number[]) {
     const likes = await this.likeRepo.find({
-      where: { author: userId, postId: In(postIds) },
+      where: { author: userId, postId: In(postIds), deletedAt: null },
     });
     return likes.map((like) => like.postId);
   }

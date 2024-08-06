@@ -79,35 +79,40 @@ export class GroupService {
       },
       relations: ['creatorUser', 'posts', 'followers'],
     });
-    const posts = await this.groupRepo
-      .createQueryBuilder('group')
-      .select('group.id AS id')
-      .leftJoinAndMapMany(
-        'group.posts',
-        (sq) => {
-          return sq
-            .select([
-              'post.id AS post_id',
-              'post.message AS post_message',
-              'post.created_at AS post_created_at',
-              'group_id',
-            ])
-            .from(Post, 'post')
-            .leftJoin('post.authorUser', 'authorUser')
-            .addSelect([
-              'authorUser.nickname AS author_nickname',
-              'authorUser.ref AS author_ref',
-              'authorUser.team_id AS author_team_id',
-              'authorUser.profile_img AS author_profile_img',
-            ])
-            .orderBy('post.created_at', 'DESC')
-            .limit(3);
-        },
-        'posts',
-        'posts.group_id = group.id',
-      )
-      .where('group.id IN (:...ids)', { ids: groups.map((group) => group.id) })
-      .getRawMany();
+    let posts = [];
+    if (groups.length > 0) {
+      posts = await this.groupRepo
+        .createQueryBuilder('group')
+        .select('group.id AS id')
+        .leftJoinAndMapMany(
+          'group.posts',
+          (sq) => {
+            return sq
+              .select([
+                'post.id AS post_id',
+                'post.message AS post_message',
+                'post.created_at AS post_created_at',
+                'group_id',
+              ])
+              .from(Post, 'post')
+              .leftJoin('post.authorUser', 'authorUser')
+              .addSelect([
+                'authorUser.nickname AS author_nickname',
+                'authorUser.ref AS author_ref',
+                'authorUser.team_id AS author_team_id',
+                'authorUser.profile_img AS author_profile_img',
+              ])
+              .orderBy('post.created_at', 'DESC')
+              .limit(3);
+          },
+          'posts',
+          'posts.group_id = group.id',
+        )
+        .where('group.id IN (:...ids)', {
+          ids: groups.map((group) => group.id),
+        })
+        .getRawMany();
+    }
     // personalization
     let following = undefined;
     if (options?.sender) {
