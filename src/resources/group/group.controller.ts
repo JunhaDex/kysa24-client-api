@@ -53,8 +53,8 @@ export class GroupController {
     let page: PageQuery;
     if (query.page || query.size) {
       page = {
-        pageNo: query.page ?? 1,
-        pageSize: query.size ?? DEFAULT_PAGE_SIZE,
+        pageNo: Number(query.page ?? 1),
+        pageSize: Number(query.size ?? DEFAULT_PAGE_SIZE),
       };
     }
     const list = await this.groupService.listGroups({

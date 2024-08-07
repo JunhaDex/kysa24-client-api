@@ -1,5 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Injectable } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  Logger,
+  OnApplicationBootstrap,
+} from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { Group, GroupUserFollow } from '@/resources/group/group.entity';
 import { PageQuery, Paginate } from '@/types/index.type';
@@ -9,9 +14,11 @@ import { Post } from '@/resources/post/post.entity';
 import { GroupCreateDto, GroupUpdateDto } from '@/resources/group/group.type';
 import { flattenObject } from '@/utils/index.util';
 import { PostService } from '@/resources/post/post.service';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import { Redis } from 'ioredis';
 
 @Injectable()
-export class GroupService {
+export class GroupService implements OnApplicationBootstrap {
   static GROUP_SERVICE_EXCEPTIONS = {
     GROUP_NOT_FOUND: 'GROUP_NOT_FOUND',
     GROUP_EXISTS: 'GROUP_EXISTS',
@@ -19,6 +26,7 @@ export class GroupService {
   } as const;
 
   private readonly Exceptions = GroupService.GROUP_SERVICE_EXCEPTIONS;
+  private readonly redisClient: Redis;
 
   constructor(
     @InjectRepository(Group) private readonly groupRepo: Repository<Group>,
@@ -27,7 +35,59 @@ export class GroupService {
     private readonly followRepo: Repository<GroupUserFollow>,
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly postService: PostService,
-  ) {}
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {
+    this.redisClient = (this.cacheManager as any).store.getClient();
+  }
+
+  async onApplicationBootstrap(): Promise<void> {
+    Logger.log('Caching Groups...');
+    const rawQuery = `
+        SELECT g.id         AS id,
+               g.group_name AS group_name,
+               p.id         AS post_id,
+               p.created_at AS post_created_at
+        FROM \`group\` g
+                 LEFT OUTER JOIN (SELECT post.*
+                                  FROM post
+                                  WHERE (post.group_id, post.created_at) IN (SELECT group_id, MAX(created_at)
+                                                                             FROM post
+                                                                             GROUP BY group_id)) p ON g.id = p.group_id
+        ORDER BY p.created_at DESC, g.id ASC;
+    `;
+    const groupIds = await this.groupRepo.query(rawQuery);
+    await this.redisClient.del('group:list');
+    for (const group of groupIds) {
+      await this.redisClient.rpush('group:list', group.id);
+    }
+  }
+
+  async updateGroupPriority(): Promise<void> {
+    const preConfigured = [1];
+    const cached = await this.redisClient.lrange('group:list', 0, -1);
+    const groups = await this.groupRepo.find();
+    const changed: Group[] = [];
+    const priority = [
+      ...preConfigured,
+      ...cached
+        .map((id) => parseInt(id))
+        .filter((id) => !preConfigured.includes(id)),
+    ];
+    let pp = 1;
+    for (const id of priority) {
+      const group = groups.find((g) => g.id === id);
+      if (group) {
+        if (group.priority !== pp) {
+          group.priority = pp;
+          changed.push(group);
+        }
+        pp += 1;
+      }
+    }
+    if (changed.length > 0) {
+      await this.groupRepo.save(changed);
+    }
+  }
 
   async listGroups(options?: {
     page?: PageQuery;
@@ -63,9 +123,6 @@ export class GroupService {
           ref: true,
           nickname: true,
         },
-        posts: {
-          createdAt: true,
-        },
         followers: {
           id: true,
         },
@@ -74,12 +131,9 @@ export class GroupService {
       skip,
       take,
       order: {
-        priority: 'DESC',
-        posts: {
-          createdAt: 'DESC',
-        },
+        priority: 'ASC',
       },
-      relations: ['creatorUser', 'posts', 'followers'],
+      relations: ['creatorUser', 'followers'],
     });
     let posts = [];
     if (groups.length > 0) {
@@ -259,8 +313,10 @@ export class GroupService {
       newGroup.coverImg = group.coverImg;
       newGroup.profileImg = group.profileImg;
       newGroup.creator = group.creator;
-      await this.groupRepo.save(newGroup);
+      newGroup.priority = 2;
+      const result = await this.groupRepo.save(newGroup);
       await this.followGroup(newGroup.ref, group.creator, { isMust: true });
+      await this.redisClient.lpush('group:list', result.id);
       return;
     }
     throw new Error(this.Exceptions.GROUP_EXISTS);

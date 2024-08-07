@@ -38,7 +38,7 @@ export class Group {
   @JoinColumn({ name: 'creator' })
   creatorUser: User;
   @OneToMany(() => Post, (post) => post.group)
-  posts: Post[];
+  posts: Promise<Post[]>;
   @OneToMany(() => GroupUserFollow, (follow) => follow.group)
   followers: GroupUserFollow[];
 }

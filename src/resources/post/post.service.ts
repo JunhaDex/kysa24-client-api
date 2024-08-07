@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, QueryRunner, Repository } from 'typeorm';
 import { Post, PostComment, PostLike } from '@/resources/post/post.entity';
@@ -14,6 +14,8 @@ import { flattenObject } from '@/utils/index.util';
 import { NotiService } from '@/resources/noti/noti.service';
 import { GroupMessageData, PostMessageData } from '@/resources/noti/noti.type';
 import { User } from '@/resources/user/user.entity';
+import { CACHE_MANAGER, Cache } from '@nestjs/cache-manager';
+import { Redis } from 'ioredis';
 
 @Injectable()
 export class PostService {
@@ -24,6 +26,7 @@ export class PostService {
     GROUP_ROLE_INVALID: 'GROUP_ROLE_INVALID',
   } as const;
   private readonly Exceptions = PostService.POST_SERVICE_EXCEPTIONS;
+  private readonly redisClient: Redis;
 
   constructor(
     @InjectRepository(Post) private postRepo: Repository<Post>,
@@ -35,7 +38,10 @@ export class PostService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectDataSource() private dataSource: DataSource,
     private readonly notiService: NotiService,
-  ) {}
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {
+    this.redisClient = (this.cacheManager as any).store.getClient();
+  }
 
   async listPosts(
     groupRef: string,
@@ -267,6 +273,7 @@ export class PostService {
         post.image = postInput.image;
         post.message = postInput.message;
         const newPost = await this.postRepo.save(post);
+        await this.orderGroupRecent(group.id);
         await this.notiService.publishTopic(ids, 'group', {
           groupRef: group.ref,
           postId: newPost.id,
@@ -385,5 +392,10 @@ export class PostService {
       throw new Error(this.Exceptions.NOT_AUTHOR);
     }
     throw new Error(this.Exceptions.POST_NOT_FOUND);
+  }
+
+  async orderGroupRecent(groupId: number) {
+    await this.redisClient.lrem('group:list', 0, groupId);
+    await this.redisClient.lpush('group:list', groupId);
   }
 }

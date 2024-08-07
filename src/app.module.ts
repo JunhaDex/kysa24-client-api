@@ -21,7 +21,8 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { AuthMiddleware } from '@/middlewares/auth.middleware';
 import { NotiModule } from '@/resources/noti/noti.module';
 import { UploadMiddleware } from '@/middlewares/upload.middleware';
-import { Team } from '@/resources/user/team.entity';
+import { ScheduleModule } from '@nestjs/schedule';
+import { TaskModule } from '@/tasks/task.module';
 
 @Module({
   imports: [
@@ -42,6 +43,8 @@ import { Team } from '@/resources/user/team.entity';
       secret: process.env.JWT_SECRET_HASH,
       signOptions: { expiresIn: '2h' },
     }),
+    ScheduleModule.forRoot(),
+    TaskModule,
     UserModule,
     PostModule,
     GroupModule,
