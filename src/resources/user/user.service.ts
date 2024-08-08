@@ -127,7 +127,7 @@ export class UserService {
 
   async listUsers(options?: {
     page?: PageQuery;
-    filter?: { name?: string; teamName?: string };
+    filter?: { name?: string; teamName?: string; sex?: string };
   }): Promise<Paginate<User>> {
     // setup page query: page -> teamId, pageSize -> ignore, pageStart -> ignore
     const pageNo = options?.page?.pageNo ?? 1;
@@ -154,6 +154,15 @@ export class UserService {
           return EMPTY_PAGE as Paginate<User>;
         }
       }
+      if (options.filter.sex) {
+        const iso =
+          Number(options.filter.sex) === 1
+            ? 1
+            : Number(options.filter.sex) === 2
+              ? 2
+              : undefined;
+        filter = { ...filter, sex: iso };
+      }
     }
     // query user table
     const [listRaw, count] = await this.userRepo.findAndCount({
@@ -166,7 +175,7 @@ export class UserService {
     // return paginated result
     return {
       meta: {
-        pageNo: options?.page?.pageNo || 1,
+        pageNo: options?.page?.pageNo ?? 1,
         pageSize: DEFAULT_PAGE_SIZE,
         totalPage: totalTeams,
         totalCount: options?.filter ? count : totalUsers,
