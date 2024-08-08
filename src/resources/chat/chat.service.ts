@@ -262,10 +262,23 @@ export class ChatService {
     return EMPTY_PAGE as Paginate<Chat>;
   }
 
-  async listChatUsers(roomRef: string): Promise<User[]> {
+  async getChatRoomViewDetail(
+    roomRef: string,
+    senderId: number,
+  ): Promise<{
+    chatRoom: ChatRoomView;
+    users: User[];
+  }> {
     const room = await this.roomRepo.findOne({ where: { ref: roomRef } });
     if (room) {
-      return await this.userSerivce.getUserInfoById(room.members);
+      const rv = await this.roomViewRepo.findOne({
+        where: { userId: senderId, roomId: room.id },
+      });
+      const users = await this.userSerivce.getUserInfoById(room.members);
+      return {
+        chatRoom: rv,
+        users,
+      };
     }
     throw new Error(this.Exceptions.ROOM_NOT_FOUND);
   }

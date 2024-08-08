@@ -140,7 +140,7 @@ export class ChatController {
    * @param req
    * @param res
    */
-  @Get('room/:ref/users')
+  @Get('room/:ref/detail')
   async getChatUsers(
     @Param('ref') ref: string,
     @Req() req: any,
@@ -149,10 +149,13 @@ export class ChatController {
     const user = req['user'];
     try {
       await this.chatService.checkAccessRoom(user.id, ref);
-      const users = this.chatService.listChatUsers(ref);
+      const roomViewInfo = await this.chatService.getChatRoomViewDetail(
+        ref,
+        user.id,
+      );
       return res
         .status(HttpStatus.OK)
-        .send(formatResponse(HttpStatus.OK, users));
+        .send(formatResponse(HttpStatus.OK, roomViewInfo));
     } catch (e) {
       if (e.message === ChatService.CHAT_SERVICE_EXCEPTIONS.ROOM_NOT_FOUND) {
         return res

@@ -120,6 +120,7 @@ export class UserService {
     const users = await this.userRepo.find({
       where: { id: In(userIds) },
     });
+    console.log(users);
     return users.map((user) => {
       return this.safeUserInfo(user);
     });
@@ -138,16 +139,16 @@ export class UserService {
     };
     if (options?.filter) {
       if (options.filter.name) {
-        filter = { ...filter, name: Like(`%${options.filter.name}%`) };
+        filter = { name: Like(`%${options.filter.name}%`) };
       }
       if (options.filter.teamName) {
+        totalTeams = 1;
         const [teams, tCount] = await this.teamRepo.findAndCountBy({
           teamName: Like(`%${options.filter.teamName}%`),
         });
         if (tCount > 0) {
-          totalTeams = tCount;
+          totalTeams = 1;
           filter = {
-            ...filter,
             teamId: In(teams.map((team) => team.id)),
           };
         } else {
