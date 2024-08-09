@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { Injectable, UseGuards } from '@nestjs/common';
+import { Inject, Injectable, UseGuards } from '@nestjs/common';
 import { AuthGuard } from '@/guards/auth.guard';
 import {
   Chat,
@@ -22,6 +22,8 @@ import dayjs from 'dayjs';
 import { NotiService } from '@/resources/noti/noti.service';
 import { TicketMessageData } from '@/resources/noti/noti.type';
 import { UserService } from '@/resources/user/user.service';
+import { Redis } from 'ioredis';
+import { Cache, CACHE_MANAGER } from '@nestjs/cache-manager';
 
 @Injectable()
 @UseGuards(AuthGuard)
@@ -31,6 +33,7 @@ export class ChatService {
     INVALID_USER: 'INVALID_USER',
   } as const;
   private readonly Exceptions = ChatService.CHAT_SERVICE_EXCEPTIONS;
+  private readonly redisClient: Redis;
 
   constructor(
     @InjectRepository(Chat) private readonly chatRepo: Repository<Chat>,
@@ -43,7 +46,10 @@ export class ChatService {
     @InjectDataSource() private readonly dataSource: DataSource,
     private readonly userSerivce: UserService,
     private readonly notiService: NotiService,
-  ) {}
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+  ) {
+    this.redisClient = (this.cacheManager as any).store.getClient();
+  }
 
   async listChatRooms(
     user: number,
@@ -319,31 +325,54 @@ export class ChatService {
     return dayMax - count > 0 ? dayMax - count : 0;
   }
 
-  async sendUserExpressTicket(user: number, toRef: string): Promise<void> {
+  async sendUserExpressTicket(
+    user: User,
+    toRef: string,
+    options?: {
+      isReply: boolean;
+      originId?: number;
+    },
+  ): Promise<void> {
     const recipient = await this.userRepo.findOneBy({ ref: toRef });
-    const room = await this.getOrGenRoom(user, recipient.id);
-    const count = await this.countTicketRemainToday(user);
+    const room = await this.getOrGenRoom(user.id, recipient.id);
+    const count = await this.countTicketRemainToday(user.id);
     if (room && count > 0) {
-      const users = await this.userRepo.find({
-        select: ['id', 'ref', 'nickname', 'profileImg'],
-        where: {
-          id: In([user, recipient.id]),
-        },
-      });
       const ticket = this.ticketRepo.create();
-      ticket.userId = user;
+      ticket.userId = user.id;
       ticket.recipient = recipient.id;
       const chatMsg = this.chatRepo.create();
       chatMsg.roomId = room.id;
-      chatMsg.sender = user;
-      chatMsg.message = ':::type__express_ticket';
+      chatMsg.sender = user.id;
+      chatMsg.message = ':::type__express_ticket:::';
       chatMsg.encoded = true;
       const queryRunner = this.dataSource.createQueryRunner();
       await queryRunner.connect();
       await queryRunner.startTransaction();
+      let pubPayload: Chat;
       try {
         await queryRunner.manager.save(ticket);
-        await queryRunner.manager.save(chatMsg);
+        const chat = await queryRunner.manager.save(chatMsg);
+        if (options?.isReply && options.originId) {
+          const msgs = this.getTicketReplyMsg(
+            user,
+            recipient,
+            options.originId,
+            chat.id,
+          );
+          await queryRunner.manager.update(Chat, chat.id, {
+            message: msgs.reply,
+          });
+          await queryRunner.manager.update(Chat, options.originId, {
+            message: msgs.origin,
+          });
+          pubPayload = { ...chat, message: msgs.reply };
+        } else {
+          const msg = this.genTicketSendMsg(user, recipient, chat.id);
+          await queryRunner.manager.update(Chat, chat.id, {
+            message: msg,
+          });
+          pubPayload = { ...chat, message: msg };
+        }
         await queryRunner.commitTransaction();
       } catch (err) {
         await queryRunner.rollbackTransaction();
@@ -351,14 +380,73 @@ export class ChatService {
       } finally {
         await queryRunner.release();
       }
-      // TODO: publish to redis
+      await this.redisClient.publish(
+        'live-chat',
+        JSON.stringify({ recipients: [recipient.ref], chat: pubPayload }),
+      );
       await this.notiService.sendNotification(recipient.id, 'ticket', {
         roomRef: room.ref,
-        fromRef: users.filter((u) => u.id === user)[0].ref,
+        fromRef: user.ref,
       } as TicketMessageData);
       return;
     }
     throw new Error(this.Exceptions.ROOM_NOT_FOUND);
+  }
+
+  private genTicketSendMsg(from: User, to: User, chatId: number) {
+    const prefix = ':::type__express_ticket:::';
+    const msg = {
+      chatId,
+      type: 'ticket',
+      from: {
+        ref: from.ref,
+        nickname: from.nickname,
+      },
+      to: {
+        ref: to.ref,
+        nickname: to.nickname,
+      },
+      replied: false,
+    };
+    return `${prefix}${JSON.stringify(msg)}`;
+  }
+
+  private getTicketReplyMsg(
+    from: User,
+    to: User,
+    originId: number,
+    replyId: number,
+  ): { reply: string; origin: string } {
+    const prefix = ':::type__express_ticket:::';
+    const reply = {
+      chatId: replyId,
+      type: 'reply',
+      from: {
+        ref: from.ref,
+        nickname: from.nickname,
+      },
+      to: {
+        ref: to.ref,
+        nickname: to.nickname,
+      },
+    };
+    const origin = {
+      chatId: originId,
+      type: 'ticket',
+      from: {
+        ref: to.ref,
+        nickname: to.nickname,
+      },
+      to: {
+        ref: from.ref,
+        nickname: from.nickname,
+      },
+      replied: true,
+    };
+    return {
+      reply: `${prefix}${JSON.stringify(reply)}`,
+      origin: `${prefix}${JSON.stringify(origin)}`,
+    };
   }
 
   async denyUserChat(

@@ -20,6 +20,7 @@ import {
   validateBody,
 } from '@/utils/index.util';
 import { DEFAULT_PAGE_SIZE } from '@/constants/index.constant';
+import { query } from 'express';
 
 @Controller('chat')
 @UseGuards(AuthGuard)
@@ -200,18 +201,25 @@ export class ChatController {
   /**
    * Send express ticket to user
    * @param toRef
+   * @param query
    * @param req
    * @param res
    */
   @Post('ticket/:ref')
   async sendExpressTicket(
     @Param('ref') toRef: string,
+    @Query() query: any,
     @Req() req: any,
     @Res() res: any,
   ) {
-    const sender = req['user'].id;
+    const sender = req['user'];
     try {
-      await this.chatService.sendUserExpressTicket(sender, toRef);
+      const isReply = !!query.originId;
+      const originId = query.originId ? Number(query.originId) : undefined;
+      await this.chatService.sendUserExpressTicket(sender, toRef, {
+        isReply,
+        originId,
+      });
       return res
         .status(HttpStatus.OK)
         .send(formatResponse(HttpStatus.OK, 'ticket sent'));
