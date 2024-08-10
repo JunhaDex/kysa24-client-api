@@ -14,6 +14,6 @@ COPY --from=build-stage /usr/src/app/secret ./secret
 COPY --from=build-stage /usr/src/app/.env .
 COPY --from=build-stage /usr/src/app/package.json .
 COPY --from=build-stage /usr/src/app/yarn.lock .
-RUN yarn install --production
+RUN yarn install --production --ignore-engines
 CMD node dist/main.js
 EXPOSE 3001
