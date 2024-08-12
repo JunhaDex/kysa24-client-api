@@ -21,7 +21,7 @@ Authorization: Bearer {{auth}}
 
 ### get user list (secure-list)
 # GET {{host}}/api/v1/user/secure-list?name=김&team-name=1&page=2&size=10
-GET {{host}}/api/v1/user/secure-list
+GET {{host}}/api/v1/user/secure-list?sex=1
 Content-Type: application/json
 Authorization: Bearer {{auth}}
 
@@ -43,7 +43,7 @@ Authorization: Bearer {{auth}}
 
 {
   "oldPwd": "123456",
-  "newPwd": "000000"
+  "newPwd": "000000"x
 }
 
 ### create group
@@ -148,6 +148,11 @@ Authorization: Bearer {{auth2}}
 
 ### list chat rooms
 GET {{host}}/api/v1/chat/recent
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+### get room user
+GET {{host}}/api/v1/chat/room/44049ebe-f231-4fb3-89b9-be1da53d7ce3/detail
 Content-Type: application/json
 Authorization: Bearer {{auth}}
 

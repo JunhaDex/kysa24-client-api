@@ -61,6 +61,7 @@ export class ChatService {
       : 0;
     const take = options?.page ? options.page.pageSize : size;
     const blockType = !!options?.isBlock;
+    // list my room view
     const [rooms, count] = await this.roomViewRepo.findAndCount({
       select: {
         id: true,
@@ -71,6 +72,7 @@ export class ChatService {
         lastRead: true,
         room: {
           ref: true,
+          members: true,
           chats: {
             id: true,
             createdAt: true,
@@ -88,6 +90,14 @@ export class ChatService {
       },
     });
     if (!rooms.length) return EMPTY_PAGE as Paginate<ChatRoomDao>;
+    // getting all unique member id
+    const usrSet = new Set<number>();
+    rooms.forEach((r) => {
+      r.room.members.forEach((m) => usrSet.add(m));
+    });
+    // remove my id
+    const usrIds = Array.from(usrSet).filter((m) => m !== user);
+    const users = await this.userSerivce.getUserInfoById(usrIds);
     const listChatsRaw = await this.chatRepo
       .createQueryBuilder('chat')
       .innerJoin(
@@ -118,9 +128,10 @@ export class ChatService {
         },
       }) as Chat[];
     });
-    const chatRooms = rooms.map((room) => {
+    const chatRooms = rooms.map((room: any) => {
+      room.party = users.filter((u) => room.room.members.includes(u.id));
       const flat = flattenObject(room, {
-        exclude: ['room.chats'],
+        exclude: ['room.chats', 'room.members'],
         alias: {
           'room.ref': 'ref',
         },
