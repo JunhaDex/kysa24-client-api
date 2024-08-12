@@ -190,4 +190,9 @@ GET {{host}}/api/v1/chat/ticket/count
 Content-Type: application/json
 Authorization: Bearer {{auth}}
 
+### get notification
+GET {{host}}/api/v1/user/my/noti
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
 

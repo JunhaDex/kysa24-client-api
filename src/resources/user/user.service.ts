@@ -269,6 +269,19 @@ export class UserService {
     throw new Error(this.Exceptions.USER_NOT_FOUND);
   }
 
+  async markNotiAsRead(userId: number, notiIds: number[]): Promise<void> {
+    const user = await this.userRepo.findOneBy({ id: userId });
+    if (user) {
+      const now = new Date();
+      await this.notiRepo.update(
+        { target: user.id, id: In(notiIds) },
+        { readAt: now },
+      );
+      return;
+    }
+    throw new Error(this.Exceptions.USER_NOT_FOUND);
+  }
+
   async deleteMyNotificationBatch(
     id: number,
     notiIds: number[],

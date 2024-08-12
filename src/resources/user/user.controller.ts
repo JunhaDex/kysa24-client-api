@@ -6,6 +6,7 @@ import {
   HttpStatus,
   Param,
   Patch,
+  Post,
   Put,
   Query,
   Req,
@@ -216,6 +217,26 @@ export class UserController {
     }
   }
 
+  @Post('my/noti')
+  async markNotiAsRead(@Body() body: any, @Req() req: any, @Res() res: any) {
+    if (validateBody({ ids: { type: 'array', required: true } }, body)) {
+      const userId = req['user'].id;
+      try {
+        await this.userService.markNotiAsRead(userId, body.ids);
+      } catch (e) {
+        if (e.message === UserService.USER_SERVICE_EXCEPTIONS.USER_NOT_FOUND) {
+          return res
+            .code(HttpStatus.NOT_FOUND)
+            .send(formatResponse(HttpStatus.NOT_FOUND, 'user not found'));
+        }
+        return fallbackCatch(e, res);
+      }
+    }
+    return res
+      .code(HttpStatus.BAD_REQUEST)
+      .send(formatResponse(HttpStatus.BAD_REQUEST, 'invalid request'));
+  }
+
   @Delete('my/noti/delete-batch')
   async deleteMyNotificationBatch(
     @Body() body: any,
@@ -238,5 +259,8 @@ export class UserController {
         return fallbackCatch(e, res);
       }
     }
+    return res
+      .code(HttpStatus.BAD_REQUEST)
+      .send(formatResponse(HttpStatus.BAD_REQUEST, 'invalid request'));
   }
 }

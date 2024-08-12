@@ -31,6 +31,7 @@ export class ChatService {
   static CHAT_SERVICE_EXCEPTIONS = {
     ROOM_NOT_FOUND: 'ROOM_NOT_FOUND',
     INVALID_USER: 'INVALID_USER',
+    CHAT_DENIED: 'CHAT_DENIED',
   } as const;
   private readonly Exceptions = ChatService.CHAT_SERVICE_EXCEPTIONS;
   private readonly redisClient: Redis;
@@ -245,7 +246,18 @@ export class ChatService {
   ): Promise<ChatRoom> {
     const target = await this.userRepo.findOneBy({ ref: targetRef });
     if (target) {
-      return await this.getOrGenRoom(myId, target.id);
+      const room = await this.getOrGenRoom(myId, target.id);
+      const myView = await this.roomViewRepo.findOneBy({
+        userId: myId,
+        roomId: room.id,
+      });
+      if (myView) {
+        if (!myView.isBlock) {
+          return room;
+        } else {
+          throw new Error(this.Exceptions.CHAT_DENIED);
+        }
+      }
     }
     throw new Error(this.Exceptions.ROOM_NOT_FOUND);
   }

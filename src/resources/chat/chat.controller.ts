@@ -20,7 +20,6 @@ import {
   validateBody,
 } from '@/utils/index.util';
 import { DEFAULT_PAGE_SIZE } from '@/constants/index.constant';
-import { query } from 'express';
 
 @Controller('chat')
 @UseGuards(AuthGuard)
@@ -74,6 +73,12 @@ export class ChatController {
         return res
           .status(HttpStatus.NOT_FOUND)
           .send(formatResponse(HttpStatus.NOT_FOUND, 'user not found'));
+      } else if (
+        e.message === ChatService.CHAT_SERVICE_EXCEPTIONS.CHAT_DENIED
+      ) {
+        return res
+          .status(HttpStatus.FORBIDDEN)
+          .send(formatResponse(HttpStatus.FORBIDDEN, 'chat denied'));
       }
       fallbackCatch(e, res);
     }
