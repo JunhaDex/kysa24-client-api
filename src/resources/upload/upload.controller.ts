@@ -128,8 +128,25 @@ export class UploadController {
     try {
       const image = sharp(inputBuffer);
       const metadata = await image.metadata();
-      const cropWidth = metadata.width;
-      const cropHeight = Math.round(cropWidth / aspectRatio);
+      const orientation = metadata.orientation;
+      let { width, height } = metadata;
+      if (orientation && orientation >= 5 && orientation <= 8) {
+        [width, height] = [height, width];
+      }
+
+      // Calculate dimensions for cropping
+      const currentRatio = width / height;
+      let cropWidth, cropHeight;
+
+      if (currentRatio > aspectRatio) {
+        // Image is wider than target ratio, crop width
+        cropHeight = height;
+        cropWidth = Math.round(cropHeight * aspectRatio);
+      } else {
+        // Image is taller than target ratio, crop height
+        cropWidth = width;
+        cropHeight = Math.round(cropWidth / aspectRatio);
+      }
 
       // Calculate resize height based on target width
       let resizeHeight = Math.round(targetWidth / aspectRatio);
@@ -137,13 +154,13 @@ export class UploadController {
 
       // processed Buffer
       return await image
+        .rotate()
         .extract({
           width: cropWidth,
           height: cropHeight,
-          left: Math.round((metadata.width - cropWidth) / 2),
-          top: Math.round((metadata.height - cropHeight) / 2),
+          left: Math.round((width - cropWidth) / 2),
+          top: Math.round((height - cropHeight) / 2),
         })
-        .rotate()
         .resize(targetWidth, resizeHeight)
         .toFormat('webp')
         .toBuffer();

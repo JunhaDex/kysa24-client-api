@@ -2,16 +2,16 @@ import request from 'supertest';
 
 const baseUrl = 'http://localhost:3001';
 const testUser1 = {
-  id: 'new.minji',
-  pwd: '000000',
+  id: '정현우.95',
+  pwd: '950110',
   fcm: '',
   auth: '',
   myInfo: undefined,
 };
 
 const testUser2 = {
-  id: 'kim.chul',
-  pwd: '000000',
+  id: '조건주.92',
+  pwd: '920813',
   fcm: '',
   auth: '',
   myInfo: undefined,
@@ -20,7 +20,7 @@ const testUser2 = {
 const varbose = true;
 
 // eslint-disable-next-line
-var g_Ref = '8f01e814-21ff-4705-b6f5-6c2db72f8c2d';
+var g_Ref = '2437580c-cb51-44ab-8647-ce54be2c99d9';
 
 describe('Server Readiness', () => {
   it('Health Check', async () => {
@@ -257,32 +257,32 @@ describe('Update user info', () => {
 });
 
 describe('Create and follow group', () => {
-  // it('Create a new group', async () => {
-  //   const g_title = 'Bunnies';
-  //   const res = await request(baseUrl)
-  //     .post('/api/v1/group/new')
-  //     .send({
-  //       groupName: g_title,
-  //       introduce: 'Bunnies are cute!',
-  //     })
-  //     .set('Content-Type', 'application/json')
-  //     .set('Authorization', `Bearer ${testUser1.auth}`);
-  //   const listRes = await request(baseUrl)
-  //     .get('/api/v1/group' + '?name=' + g_title)
-  //     .set('Content-Type', 'application/json');
-  //   // console log here
-  //   if (varbose) {
-  //     console.log('Result: ', JSON.stringify(res.body, null, '\t'));
-  //     console.log('Result: ', JSON.stringify(listRes.body, null, '\t'));
-  //   }
-  //   // testing here
-  //   g_Ref = listRes.body.result.list.filter(
-  //     (item: any) => item.groupName === g_title,
-  //   )[0]?.ref;
-  //   expect(res.statusCode).toEqual(201);
-  //   expect(listRes.statusCode).toEqual(200);
-  //   expect(g_Ref).not.toEqual(undefined);
-  // });
+  it('Create a new group', async () => {
+    const g_title = 'Bunnies';
+    const res = await request(baseUrl)
+      .post('/api/v1/group/new')
+      .send({
+        groupName: g_title,
+        introduce: 'Bunnies are cute!',
+      })
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    const listRes = await request(baseUrl)
+      .get('/api/v1/group' + '?name=' + g_title)
+      .set('Content-Type', 'application/json');
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+      console.log('Result: ', JSON.stringify(listRes.body, null, '\t'));
+    }
+    // testing here
+    g_Ref = listRes.body.result.list.filter(
+      (item: any) => item.groupName === g_title,
+    )[0]?.ref;
+    expect(res.statusCode).toEqual(201);
+    expect(listRes.statusCode).toEqual(200);
+    expect(g_Ref).not.toEqual(undefined);
+  });
   it('View group feed', async () => {
     const res = await request(baseUrl)
       .get('/api/v1/post/feed/' + g_Ref)
@@ -396,8 +396,8 @@ describe('Create and follow group', () => {
 describe('Update group info', () => {
   it('update user info with profile upload', async () => {
     const uploadRes = await request(baseUrl)
-      .post('/api/v1/upload/group/profile/Bunnies')
-      .attach('file', './test/assets/group-profile-smp.jpg')
+      .post('/api/v1/upload/group/cover/')
+      .attach('file', './test/assets/hh.jpg')
       .set('Content-Type', 'multipart/form-data')
       .set('Authorization', `Bearer ${testUser1.auth}`);
     const patchRes = await request(baseUrl)
