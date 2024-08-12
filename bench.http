@@ -43,7 +43,7 @@ Authorization: Bearer {{auth}}
 
 {
   "oldPwd": "123456",
-  "newPwd": "000000"x
+  "newPwd": "000000"
 }
 
 ### create group
@@ -60,6 +60,11 @@ Authorization: Bearer {{auth}}
 #GET {{host}}/api/v1/group?name=테스트&page=1&size=10
 GET {{host}}/api/v1/group
 Content-Type: application/json
+
+### get my group follow
+GET {{host}}/api/v1/group/mylist
+Content-Type: application/json
+Authorization: Bearer {{auth}}
 
 ### update group list
 PATCH {{host}}/api/v1/group/855f0097-911b-43b6-b5cb-75a38b69baf8

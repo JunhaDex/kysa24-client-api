@@ -65,6 +65,14 @@ export class GroupController {
     return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
   }
 
+  @Get('mylist')
+  @UseGuards(AuthGuard)
+  async listMyGroups(@Req() req: any, @Res() res: any) {
+    const user = req['user'];
+    const list = await this.groupService.listMyGroups(user.id);
+    return res.status(HttpStatus.OK).send(formatResponse(HttpStatus.OK, list));
+  }
+
   /**
    * [**Public**]
    *

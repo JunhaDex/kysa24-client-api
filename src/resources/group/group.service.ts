@@ -189,6 +189,20 @@ export class GroupService implements OnApplicationBootstrap {
     };
   }
 
+  async listMyGroups(me: number): Promise<Group[]> {
+    const follows = await this.followRepo.find({
+      where: { follower: me },
+      relations: ['group'],
+      order: {
+        group: {
+          priority: 'ASC',
+        },
+      },
+      take: 5,
+    });
+    return follows.map((follow) => follow.group);
+  }
+
   private addGroupPosts(
     groups: Group[],
     posts: any,

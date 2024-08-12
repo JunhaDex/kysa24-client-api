@@ -343,6 +343,19 @@ describe('Create and follow group', () => {
     expect(getRes.body.result.followers).toEqual(2);
     expect(unfollowRes.statusCode).toEqual(200);
   });
+  it('list followed groups', async () => {
+    const res = await request(baseUrl)
+      .get('/api/v1/group/mylist')
+      .set('Content-Type', 'application/json')
+      .set('Authorization', `Bearer ${testUser1.auth}`);
+    // console log here
+    if (varbose) {
+      console.log('Result: ', JSON.stringify(res.body, null, '\t'));
+    }
+    // testing here
+    expect(res.statusCode).toEqual(200);
+    expect(res.body.result.length).toBeGreaterThanOrEqual(1);
+  });
   it('Delete the group', async () => {
     const g_title_tmp = 'Temp Group';
     await request(baseUrl)
