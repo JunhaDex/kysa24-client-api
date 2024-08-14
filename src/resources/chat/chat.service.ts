@@ -389,15 +389,16 @@ export class ChatService {
           await queryRunner.manager.update(Chat, options.originId, {
             message: msgs.origin,
           });
-          pubPayload = { ...chat, message: msgs.reply };
+          pubPayload = { ...chat, message: msgs.reply, createdAt: new Date() };
         } else {
           const msg = this.genTicketSendMsg(user, recipient, chat.id);
           await queryRunner.manager.update(Chat, chat.id, {
             message: msg,
           });
-          pubPayload = { ...chat, message: msg };
+          pubPayload = { ...chat, message: msg, createdAt: new Date() };
         }
         await queryRunner.commitTransaction();
+        console.log(chat);
       } catch (err) {
         await queryRunner.rollbackTransaction();
         throw err;
@@ -406,7 +407,11 @@ export class ChatService {
       }
       await this.redisClient.publish(
         'live-chat',
-        JSON.stringify({ recipients: [recipient.ref], chat: pubPayload }),
+        JSON.stringify({
+          recipients: [user.ref, recipient.ref],
+          roomRef: room.ref,
+          chat: pubPayload,
+        }),
       );
       await this.notiService.sendNotification(recipient.id, 'ticket', {
         roomRef: room.ref,
