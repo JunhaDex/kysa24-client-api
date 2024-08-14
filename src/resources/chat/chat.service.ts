@@ -232,6 +232,7 @@ export class ChatService {
       .leftJoin(Chat, 'chat', 'chat.room_id = view.room_id')
       .where('view.user_id = :user', { user })
       .andWhere('chat.id > view.last_read')
+      .andWhere('chat.sender != :user', { user })
       .andWhere('view.is_block = false')
       .groupBy('view.room_id')
       .getRawMany();

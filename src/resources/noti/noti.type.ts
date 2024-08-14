@@ -27,6 +27,7 @@ export interface TicketMessageData extends MessageData {
  */
 export interface GroupMessageData extends MessageData {
   groupRef: string;
+  groupName: string;
   postId: number;
   authorNickname: string;
 }

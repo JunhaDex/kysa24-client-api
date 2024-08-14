@@ -237,7 +237,7 @@ export class PostService {
         },
         where: { postId: id, deletedAt: null },
         relations: ['authorUser'],
-        order: { createdAt: 'DESC' },
+        order: { createdAt: 'ASC' },
         skip,
         take,
       });
@@ -276,6 +276,7 @@ export class PostService {
         await this.orderGroupRecent(group.id);
         await this.notiService.publishTopic(ids, 'group', {
           groupRef: group.ref,
+          groupName: group.groupName,
           postId: newPost.id,
           authorNickname: pa.nickname,
         } as GroupMessageData);

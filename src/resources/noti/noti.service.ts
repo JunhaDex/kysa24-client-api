@@ -72,16 +72,16 @@ export class NotiService {
       noti.message = `작성한 게시물에 ${postPayload.authorNickname}님이 댓글을 남겼습니다.`;
     } else if (params.type === 'ticket') {
       const ticketPayload = params.payload as TicketMessageData;
-      noti.title = '';
+      noti.title = '관심보내기 알림';
       noti.type = `ticket__${ticketPayload.roomRef}`;
       noti.payload = JSON.stringify(ticketPayload);
-      noti.message = '';
+      noti.message = '누군가 나에게 관심보내기를 보냈습니다! 확인하러 갈까요?';
     } else if (params.type === 'group') {
       const groupPayload = params.payload as GroupMessageData;
-      noti.title = '';
+      noti.title = '그룹 게시물';
       noti.type = `group__${groupPayload.groupRef}`;
       noti.payload = JSON.stringify(groupPayload);
-      noti.message = '';
+      noti.message = `${groupPayload.groupName} 그룹에 새로운 게시물이 있습니다.`;
     }
     return noti;
   }
