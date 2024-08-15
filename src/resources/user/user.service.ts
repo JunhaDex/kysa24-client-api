@@ -120,7 +120,6 @@ export class UserService {
     const users = await this.userRepo.find({
       where: { id: In(userIds) },
     });
-    console.log(users);
     return users.map((user) => {
       return this.safeUserInfo(user);
     });
