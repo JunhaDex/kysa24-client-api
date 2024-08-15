@@ -53,7 +53,7 @@ export function sendTargetDevice(fcm: string, cred: string, payload: any) {
   return api.post('messages:send', {
     message: {
       token: fcm,
-      data: payload,
+      data: { raw: JSON.stringify(payload) },
     },
   });
 }

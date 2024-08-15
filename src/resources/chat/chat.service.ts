@@ -409,6 +409,11 @@ export class ChatService {
         JSON.stringify({ recipients: [recipient.ref], chat: pubPayload }),
       );
       await this.notiService.sendNotification(recipient.id, 'ticket', {
+        title: user.nickname,
+        message: chatMsg.encoded
+          ? '새로운 메세지가 도착했습니다.'
+          : chatMsg.message,
+        clickUrl: `/chat/${room.ref}`,
         roomRef: room.ref,
         fromRef: user.ref,
       } as TicketMessageData);

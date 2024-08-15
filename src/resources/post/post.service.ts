@@ -337,6 +337,7 @@ export class PostService {
   ): Promise<void> {
     const post = await this.postRepo.findOneBy({ id: postId });
     if (post) {
+      const postGroup = await this.groupRepo.findOneBy({ id: post.groupId });
       const ca = await this.userRepo.findOneBy({ id: author });
       const comment = this.commentRepo.create({
         author,
@@ -345,6 +346,9 @@ export class PostService {
       });
       await this.commentRepo.save(comment);
       await this.notiService.sendNotification(post.author, 'post', {
+        title: `${ca.nickname}님이 댓글을 남겼습니다.`,
+        message: commentInput.message,
+        clickUrl: `/group/${postGroup.ref}/post/${postId}`,
         postId,
         authorNickname: ca.nickname,
       } as PostMessageData);
