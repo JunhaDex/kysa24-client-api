@@ -254,6 +254,7 @@ export class UserService {
         },
         skip,
         take,
+        order: { id: 'DESC' },
       });
       return {
         meta: {
