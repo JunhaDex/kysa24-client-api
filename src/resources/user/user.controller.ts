@@ -223,6 +223,9 @@ export class UserController {
       const userId = req['user'].id;
       try {
         await this.userService.markNotiAsRead(userId, body.ids);
+        return res
+          .code(HttpStatus.OK)
+          .send(formatResponse(HttpStatus.OK, 'ok'));
       } catch (e) {
         if (e.message === UserService.USER_SERVICE_EXCEPTIONS.USER_NOT_FOUND) {
           return res

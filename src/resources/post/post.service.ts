@@ -279,6 +279,7 @@ export class PostService {
           groupName: group.groupName,
           postId: newPost.id,
           authorNickname: pa.nickname,
+          clickUrl: `/group/${group.ref}`,
         } as GroupMessageData);
         return;
       }
