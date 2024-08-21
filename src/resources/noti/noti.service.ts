@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Notification } from '@/resources/noti/noti.entity';
@@ -39,7 +39,17 @@ export class NotiService {
     await this.notiRepo.save(noti);
     const fb = await getFirebase();
     await Promise.all(
-      device.map(async (d) => await sendTargetDevice(d.fcm, fb.token, payload)),
+      device.map((d) => {
+        return new Promise((resolve) => {
+          sendTargetDevice(d.fcm, fb.token, payload).catch(() => {
+            Logger.error(
+              `message delivery failed:::: USER: ${d.userId} | ${d.fcm}`,
+            );
+            this.deviceRepo.delete(d);
+          });
+          resolve(true);
+        });
+      }),
     );
   }
 
