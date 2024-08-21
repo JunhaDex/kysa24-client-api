@@ -75,8 +75,22 @@ export class UserService {
     userId: number,
     data: { token: string; device: string },
   ): Promise<boolean> {
+    // check if device already exists
     const exist = await this.deviceRepo.findOneBy({ fcm: data.token });
     if (!exist) {
+      const devices = await this.deviceRepo.find({
+        where: { userId },
+        order: { lastLogin: 'ASC' },
+      });
+      // delete same device renewed token
+      const sameDevice = devices.find((d) => d.device === data.device);
+      if (sameDevice) {
+        await this.deviceRepo.delete(sameDevice);
+      }
+      // delete old device (save up to 3)
+      if (devices.length >= DEFAULT_MAX_DEVICE_SAVE) {
+        await this.deviceRepo.delete(devices[0]);
+      }
       const device = this.deviceRepo.create({
         userId,
         fcm: data.token,
@@ -84,14 +98,6 @@ export class UserService {
         lastLogin: new Date(),
       });
       await this.deviceRepo.save(device);
-      // delete old device (save up to 3)
-      const devices = await this.deviceRepo.find({
-        where: { userId },
-        order: { lastLogin: 'ASC' },
-      });
-      if (devices.length > DEFAULT_MAX_DEVICE_SAVE) {
-        await this.deviceRepo.delete(devices[0]);
-      }
       return true;
     }
     return false;

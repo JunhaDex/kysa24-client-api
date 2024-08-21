@@ -37,13 +37,23 @@ Authorization: Bearer {{auth}}
 }
 
 ### update user password
-PUT {{host}}/api/v1/user/my/20309ab8-df91-48bc-9276-4841ac0ec4cb/pwd
+PUT {{host}}/api/v1/user/my/7d79e3ee-c81f-4743-861c-c336bbc780ad/pwd
 Content-Type: application/json
 Authorization: Bearer {{auth}}
 
 {
   "oldPwd": "123456",
   "newPwd": "000000"
+}
+
+### update user device
+PUT {{host}}/api/v1/user/my/7d79e3ee-c81f-4743-861c-c336bbc780ad/device
+Content-Type: application/json
+Authorization: Bearer {{auth}}
+
+{
+  "token": "",
+  "device": "chrome os mac"
 }
 
 ### create group

@@ -185,9 +185,36 @@ export class UserController {
       .send(formatResponse(HttpStatus.FORBIDDEN, 'invalid request'));
   }
 
-  /**
-   * TODO: Check later with noti service implemented
-   */
+  @Put('my/:id/device')
+  async updateMyDevice(@Body() body: any, @Req() req: any, @Res() res: any) {
+    const user = req['user'];
+    if (
+      validateBody(
+        {
+          token: { type: 'string', required: true },
+          device: { type: 'string', required: true },
+        },
+        body,
+      )
+    ) {
+      try {
+        const saved = await this.userService.pushUserDevice(user.id, body);
+        return res
+          .code(HttpStatus.OK)
+          .send(
+            formatResponse(HttpStatus.OK, saved ? 'ok' : 'nothing to change'),
+          );
+      } catch (e) {
+        return res
+          .code(HttpStatus.FORBIDDEN)
+          .send(formatResponse(HttpStatus.FORBIDDEN, 'invalid request'));
+      }
+    }
+    return res
+      .code(HttpStatus.BAD_REQUEST)
+      .send(formatResponse(HttpStatus.BAD_REQUEST, 'invalid request'));
+  }
+
   @Get('my/noti')
   async listMyNotifications(
     @Query() query: any,
