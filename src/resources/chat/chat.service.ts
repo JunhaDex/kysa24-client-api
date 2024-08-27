@@ -195,7 +195,6 @@ export class ChatService {
         await queryRunner.startTransaction();
         try {
           const rc = await queryRunner.manager.save(newRoom);
-          console.log('room created', rc.id);
           await queryRunner.manager.save(
             views.map((v) => {
               v.roomId = rc.id;
@@ -398,7 +397,6 @@ export class ChatService {
           pubPayload = { ...chat, message: msg, createdAt: new Date() };
         }
         await queryRunner.commitTransaction();
-        console.log(chat);
       } catch (err) {
         await queryRunner.rollbackTransaction();
         throw err;

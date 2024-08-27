@@ -40,8 +40,6 @@ function getAxiosInstance(cred: string) {
   inst.interceptors.response.use(
     (res) => res,
     (err) => {
-      console.log(err.response);
-      console.log(err.response.status);
       return Promise.reject(err);
     },
   );

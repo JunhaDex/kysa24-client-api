@@ -18,7 +18,7 @@ async function bootstrap() {
   dayjs.extend(timezone);
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
-    new FastifyAdapter({ logger: true, bodyLimit: 10 * 1024 * 1024 }),
+    new FastifyAdapter({ logger: false, bodyLimit: 10 * 1024 * 1024 }),
     {
       bodyParser: true,
       cors: {

@@ -8,7 +8,6 @@ export function validateBody(keys: DTOKeys, obj: any): boolean {
         return false;
       }
     } else if (!keys[key].required && obj[key] !== undefined) {
-      console.log('here?');
       if (typeof keys[key].type === 'string') {
         if (keys[key].type === 'date') {
           if (isNaN(Date.parse(obj[key]))) {

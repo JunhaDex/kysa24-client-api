@@ -31,7 +31,7 @@ import { TaskModule } from '@/tasks/task.module';
       entities: ['dist/**/*.entity{.ts,.js}'],
       synchronize: false,
       namingStrategy: new SnakeNamingStrategy(),
-      logging: true,
+      logging: false,
     }),
     CacheModule.register({
       ...REDIS_CONFIG,

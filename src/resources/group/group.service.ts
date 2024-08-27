@@ -150,6 +150,10 @@ export class GroupService implements OnApplicationBootstrap {
                 'post.created_at AS post_created_at',
                 'group_id',
               ])
+              .addSelect(
+                'ROW_NUMBER() OVER (PARTITION BY post.group_id ORDER BY post.created_at DESC)',
+                'row_num',
+              )
               .from(Post, 'post')
               .leftJoin('post.authorUser', 'authorUser')
               .addSelect([
@@ -158,8 +162,7 @@ export class GroupService implements OnApplicationBootstrap {
                 'authorUser.team_id AS author_team_id',
                 'authorUser.profile_img AS author_profile_img',
               ])
-              .orderBy('post.created_at', 'DESC')
-              .limit(3);
+              .orderBy('post.created_at', 'DESC');
           },
           'posts',
           'posts.group_id = group.id',
@@ -167,6 +170,7 @@ export class GroupService implements OnApplicationBootstrap {
         .where('group.id IN (:...ids)', {
           ids: groups.map((group) => group.id),
         })
+        .where('posts.row_num <= 3')
         .getRawMany();
     }
     // personalization
