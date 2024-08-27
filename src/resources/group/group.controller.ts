@@ -16,6 +16,7 @@ import {
 import { GroupService } from './group.service';
 import { PageQuery } from '@/types/index.type';
 import {
+  checkAuth,
   fallbackCatch,
   formatResponse,
   validateBody,
@@ -127,7 +128,8 @@ export class GroupController {
     @Req() req: any,
     @Res() res: any,
   ) {
-    if (validateBody(GroupCreateDtoKeys, body)) {
+    const allowed = checkAuth(req['user'].actStatus, 'group');
+    if (allowed && validateBody(GroupCreateDtoKeys, body)) {
       body.creator = req['user'].id;
       try {
         await this.groupService.createGroup(body);

@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -36,6 +37,6 @@ export class AuthGuard implements CanActivate {
       }
       throw new InternalServerErrorException();
     }
-    throw new UnauthorizedException();
+    throw new ForbiddenException();
   }
 }

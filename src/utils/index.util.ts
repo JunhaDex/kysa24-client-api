@@ -151,3 +151,18 @@ export function fallbackCatch(e: any, res: any) {
       formatResponse(HttpStatus.INTERNAL_SERVER_ERROR, 'internal server error'),
     );
 }
+
+export function checkAuth(
+  userLevel: number,
+  feature: 'group' | 'chat',
+): boolean {
+  const AUTH_ALLOW: { [key: string]: number[] } = {
+    group: [1, 4],
+    chat: [1, 2, 3],
+  } as const;
+  if (userLevel === 0) {
+    return false;
+  } else {
+    return AUTH_ALLOW[feature].includes(userLevel);
+  }
+}

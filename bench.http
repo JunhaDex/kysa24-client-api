@@ -9,7 +9,7 @@ POST {{host}}/api/v1/auth/login
 Content-Type: application/json
 
 {
-  "id": "new.minji",
+  "id": "최은지.02",
   "pwd": "000000"
 }
 
