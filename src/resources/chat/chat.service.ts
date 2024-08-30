@@ -334,7 +334,8 @@ export class ChatService {
   async countTicketRemainToday(user: number): Promise<number> {
     const now = Date.now();
     const today = dayjs(now).tz().format('YYYY-MM-DD 23:59:59');
-    const yesterday = dayjs(now).tz().subtract(1, 'day').format('YYYY-MM-DD');
+    const yesterday = dayjs(now).tz().format('YYYY-MM-DD');
+    console.log(today, yesterday);
     const dayMax = DEFAULT_TICKET_COUNT;
     const count = await this.ticketRepo.count({
       where: {
@@ -373,7 +374,6 @@ export class ChatService {
       await queryRunner.startTransaction();
       let pubPayload: Chat;
       try {
-        await queryRunner.manager.save(ticket);
         const chat = await queryRunner.manager.save(chatMsg);
         if (options?.isReply && options.originId) {
           const msgs = this.getTicketReplyMsg(
@@ -390,6 +390,7 @@ export class ChatService {
           });
           pubPayload = { ...chat, message: msgs.reply, createdAt: new Date() };
         } else {
+          await queryRunner.manager.save(ticket);
           const msg = this.genTicketSendMsg(user, recipient, chat.id);
           await queryRunner.manager.update(Chat, chat.id, {
             message: msg,
