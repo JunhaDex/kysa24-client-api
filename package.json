@@ -41,7 +41,7 @@
     "mysql2": "^3.10.0",
     "reflect-metadata": "^0.1.13",
     "rxjs": "^7.8.1",
-    "sharp": "^0.33.4",
+    "sharp": "^0.34.2",
     "typeorm": "^0.3.20",
     "typeorm-naming-strategies": "^4.1.0",
     "uuid": "^10.0.0"

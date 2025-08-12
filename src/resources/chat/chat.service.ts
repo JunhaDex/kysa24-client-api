@@ -276,7 +276,7 @@ export class ChatService {
         where: { roomId: room.id, id: LessThanOrEqual(anchor) },
         skip,
         take,
-        order: { createdAt: 'DESC' },
+        order: { createdAt: 'ASC' },
       });
       return {
         meta: {

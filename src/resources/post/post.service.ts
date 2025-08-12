@@ -274,13 +274,17 @@ export class PostService {
         post.message = postInput.message;
         const newPost = await this.postRepo.save(post);
         await this.orderGroupRecent(group.id);
-        await this.notiService.publishTopic(ids, 'group', {
-          groupRef: group.ref,
-          groupName: group.groupName,
-          postId: newPost.id,
-          authorNickname: pa.nickname,
-          clickUrl: `/group/${group.ref}`,
-        } as GroupMessageData);
+        try {
+          await this.notiService.publishTopic(ids, 'group', {
+            groupRef: group.ref,
+            groupName: group.groupName,
+            postId: newPost.id,
+            authorNickname: pa.nickname,
+            clickUrl: `/group/${group.ref}`,
+          } as GroupMessageData);
+        } catch (e) {
+          console.error('Notification Error', e);
+        }
         return;
       }
       throw new Error(this.Exceptions.GROUP_ROLE_INVALID);
