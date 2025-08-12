@@ -257,37 +257,14 @@ export class PostService {
   async createPost(author: number, postInput: PostCreateDto): Promise<void> {
     const group = await this.groupRepo.findOneBy({ ref: postInput.groupRef });
     if (group) {
-      const pa = await this.userRepo.findOneBy({ id: author });
-      const followers = await this.followRepo.findBy({
-        groupId: group.id,
-      });
-      const ids = followers.map((f) => f.follower);
-      const role = await this.followRepo.findOneBy({
-        groupId: group.id,
-        follower: author,
-      });
-      if (role?.role === 'writer') {
-        const post = this.postRepo.create();
-        post.author = author;
-        post.groupId = group.id;
-        post.image = postInput.image;
-        post.message = postInput.message;
-        const newPost = await this.postRepo.save(post);
-        await this.orderGroupRecent(group.id);
-        try {
-          await this.notiService.publishTopic(ids, 'group', {
-            groupRef: group.ref,
-            groupName: group.groupName,
-            postId: newPost.id,
-            authorNickname: pa.nickname,
-            clickUrl: `/group/${group.ref}`,
-          } as GroupMessageData);
-        } catch (e) {
-          console.error('Notification Error', e);
-        }
-        return;
-      }
-      throw new Error(this.Exceptions.GROUP_ROLE_INVALID);
+      const post = this.postRepo.create();
+      post.author = author;
+      post.groupId = group.id;
+      post.image = postInput.image;
+      post.message = postInput.message;
+      await this.postRepo.save(post);
+      await this.orderGroupRecent(group.id);
+      return;
     }
     throw new Error(this.Exceptions.GROUP_NOT_FOUND);
   }
