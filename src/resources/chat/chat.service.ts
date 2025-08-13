@@ -119,7 +119,7 @@ export class ChatService {
       return flattenObject(chatRaw, {
         exclude: ['max_created_at'],
         alias: {
-          chat_id: 'chatId',
+          chat_id: 'id',
           chat_room_id: 'roomId',
           chat_sender: 'sender',
           chat_message: 'message',
@@ -270,13 +270,11 @@ export class ChatService {
     const anchor = options?.anchor ?? Number.MAX_SAFE_INTEGER;
     if (room) {
       const size = options?.page ? options.page.pageSize : DEFAULT_PAGE_SIZE;
-      const skip = options?.page ? (options.page.pageNo - 1) * size : 0;
       const take = options?.page ? options.page.pageSize : size;
       const [chats, count] = await this.chatRepo.findAndCount({
         where: { roomId: room.id, id: LessThanOrEqual(anchor) },
-        skip,
         take,
-        order: { createdAt: 'ASC' },
+        order: { createdAt: 'DESC' },
       });
       return {
         meta: {
@@ -285,7 +283,7 @@ export class ChatService {
           totalPage: Math.ceil(count / size),
           totalCount: count,
         },
-        list: chats,
+        list: chats.sort((a, b) => a.id - b.id),
       };
     }
     return EMPTY_PAGE as Paginate<Chat>;

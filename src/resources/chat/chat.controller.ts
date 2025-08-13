@@ -238,12 +238,25 @@ export class ChatController {
     }
   }
 
+  @Post('postman/auth')
+  async checkPostmanAuth(@Body() body: any, @Res() res: any) {
+    const passKey = body.passKey;
+    if (passKey && passKey === process.env.POSTMAN_PASSKEY) {
+      return res
+        .status(HttpStatus.OK)
+        .send(formatResponse(HttpStatus.OK, 'authorized'));
+    }
+    return res
+      .status(HttpStatus.FORBIDDEN)
+      .send(formatResponse(HttpStatus.FORBIDDEN, 'unauthorized access'));
+  }
+
   /**
    * Send mail notification to user
    * @param body
    * @param res
    */
-  @Post('postman')
+  @Post('postman/send')
   async sendPostmanAlert(@Body() body: any, @Res() res: any) {
     try {
       const passKey = body.passKey;
