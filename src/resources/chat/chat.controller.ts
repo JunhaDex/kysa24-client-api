@@ -238,6 +238,33 @@ export class ChatController {
     }
   }
 
+  /**
+   * Send mail notification to user
+   * @param body
+   * @param res
+   */
+  @Post('postman')
+  async sendPostmanAlert(@Body() body: any, @Res() res: any) {
+    try {
+      const passKey = body.passKey;
+      if (!passKey || passKey !== process.env.POSTMAN_PASSKEY) {
+        throw new Error('INVALID_PASSKEY');
+      }
+      const refs: string[] = body.refs;
+      await this.chatService.sendPostmanAlert(refs);
+      return res
+        .status(HttpStatus.OK)
+        .send(formatResponse(HttpStatus.OK, 'alert sent'));
+    } catch (e) {
+      if (e.message === 'INVALID_PASSKEY') {
+        return res
+          .status(HttpStatus.FORBIDDEN)
+          .send(formatResponse(HttpStatus.FORBIDDEN, 'unauthorized access'));
+      }
+      fallbackCatch(e, res);
+    }
+  }
+
   @Post('deny/:ref')
   async denyChat(
     @Param('ref') ref: string,

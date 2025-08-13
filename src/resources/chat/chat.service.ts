@@ -482,6 +482,77 @@ export class ChatService {
     };
   }
 
+  async sendPostmanAlert(toRef: string[]) {
+    const POST_MAN_ID = 999;
+    const postman = await this.userRepo.findOneBy({ id: POST_MAN_ID });
+    const mass = await this.userRepo.find({
+      where: { ref: In(toRef) },
+    });
+    for (const recipient of mass) {
+      const room = await this.getOrGenRoom(POST_MAN_ID, recipient.id);
+      if (!room) continue;
+      const ticket = this.ticketRepo.create();
+      ticket.userId = POST_MAN_ID;
+      ticket.recipient = recipient.id;
+      const chatMsg = this.chatRepo.create();
+      chatMsg.roomId = room.id;
+      chatMsg.sender = POST_MAN_ID;
+      chatMsg.message = ':::type__postman_alert:::';
+      chatMsg.encoded = true;
+      const queryRunner = this.dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+      let pubPayload: Chat;
+      try {
+        const chat = await queryRunner.manager.save(chatMsg);
+        await queryRunner.manager.save(ticket);
+        const msg = this.genPostmanAlertMsg(postman, recipient, chat.id);
+        await queryRunner.manager.update(Chat, chat.id, {
+          message: msg,
+        });
+        pubPayload = { ...chat, message: msg, createdAt: new Date() };
+        await queryRunner.commitTransaction();
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
+      }
+      await this.redisClient.publish(
+        'live-chat',
+        JSON.stringify({
+          recipients: [postman.ref, recipient.ref],
+          roomRef: room.ref,
+          chat: pubPayload,
+        }),
+      );
+      await this.notiService.sendNotification(recipient.id, 'ticket', {
+        title: postman.nickname,
+        message: '편지가 도착했습니다.',
+        clickUrl: `/chat/${room.ref}`,
+        roomRef: room.ref,
+        fromRef: postman.ref,
+      } as TicketMessageData);
+    }
+  }
+
+  private genPostmanAlertMsg(from: User, to: User, chatId: number) {
+    const prefix = ':::type__postman_alert:::';
+    const msg = {
+      chatId,
+      type: 'postman',
+      from: {
+        ref: from.ref,
+        nickname: from.nickname,
+      },
+      to: {
+        ref: to.ref,
+        nickname: to.nickname,
+      },
+    };
+    return `${prefix}${JSON.stringify(msg)}`;
+  }
+
   async denyUserChat(
     user: number,
     blockerRef: string,
