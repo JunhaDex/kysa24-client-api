@@ -6,9 +6,9 @@ import { GroupService } from '@/resources/group/group.service';
 export class GroupTaskService {
   constructor(private readonly groupService: GroupService) {}
 
-  @Cron(CronExpression.EVERY_5_MINUTES)
-  async handleCron() {
-    Logger.log('Updating group priority...');
-    await this.groupService.updateGroupPriority();
-  }
+  // @Cron(CronExpression.EVERY_5_MINUTES)
+  // async handleCron() {
+  //   Logger.log('Updating group priority...');
+  //   await this.groupService.updateGroupPriority();
+  // }
 }
