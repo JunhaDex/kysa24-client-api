@@ -100,41 +100,37 @@ export class GroupService implements OnApplicationBootstrap {
       ? (options.page.pageNo - 1) * options.page.pageSize
       : 0;
     const take = options?.page ? options.page.pageSize : size;
-    // setup filter queries
-    let filter: any = {
-      isShow: 1,
-    };
+    const qb = this.groupRepo
+      .createQueryBuilder('group')
+      .leftJoinAndSelect('group.creatorUser', 'creatorUser')
+      .leftJoinAndSelect('group.followers', 'followers')
+      .select([
+        'group.id',
+        'group.ref',
+        'group.creator',
+        'group.groupName',
+        'group.profileImg',
+        'group.coverImg',
+        'group.introduce',
+        'group.isShow',
+        'group.priority',
+        'creatorUser.ref',
+        'creatorUser.nickname',
+        'followers.id',
+      ])
+      .where('group.isShow = :isShow', { isShow: 1 })
+      .orderBy('group.priority', 'ASC')
+      .skip(skip)
+      .take(take)
+      // map relation count to `group.postCount`
+      .loadRelationCountAndMap('group.postCount', 'group.posts');
+
     if (options?.filter?.groupName) {
-      filter = { ...filter, groupName: Like(`%${options.filter.groupName}%`) };
+      qb.andWhere('group.groupName LIKE :groupName', {
+        groupName: `%${options.filter.groupName}%`,
+      });
     }
-    // query group table
-    const [groups, count] = await this.groupRepo.findAndCount({
-      select: {
-        id: true,
-        ref: true,
-        creator: true,
-        groupName: true,
-        profileImg: true,
-        coverImg: true,
-        introduce: true,
-        isShow: true,
-        priority: true,
-        creatorUser: {
-          ref: true,
-          nickname: true,
-        },
-        followers: {
-          id: true,
-        },
-      },
-      where: filter,
-      skip,
-      take,
-      order: {
-        priority: 'ASC',
-      },
-      relations: ['creatorUser', 'followers'],
-    });
+    const [groups, count] = await qb.getManyAndCount();
     let posts = [];
     if (groups.length > 0) {
       posts = await this.groupRepo
@@ -251,32 +247,27 @@ export class GroupService implements OnApplicationBootstrap {
     groupRef: string,
     options?: { sender?: number },
   ): Promise<Group> {
-    // query group table
-    const group = await this.groupRepo.findOne({
-      select: {
-        id: true,
-        ref: true,
-        creator: true,
-        groupName: true,
-        profileImg: true,
-        coverImg: true,
-        introduce: true,
-        isShow: true,
-        priority: true,
-        creatorUser: {
-          ref: true,
-          nickname: true,
-        },
-        posts: {
-          createdAt: true,
-        },
-        followers: {
-          id: true,
-        },
-      },
-      where: { ref: groupRef },
-      relations: ['creatorUser', 'posts', 'followers'],
-    });
+    const qb = this.groupRepo
+      .createQueryBuilder('group')
+      .leftJoinAndSelect('group.creatorUser', 'creatorUser')
+      .leftJoinAndSelect('group.followers', 'followers')
+      .select([
+        'group.id',
+        'group.ref',
+        'group.creator',
+        'group.groupName',
+        'group.profileImg',
+        'group.coverImg',
+        'group.introduce',
+        'group.isShow',
+        'group.priority',
+        'creatorUser.ref',
+        'creatorUser.nickname',
+        'followers.id',
+      ])
+      .where('group.ref = :ref', { ref: groupRef })
+      .loadRelationCountAndMap('group.postCount', 'group.posts');
+    const group = await qb.getOne();
     if (group) {
       const clean = flattenObject(group, {
         alias: {
